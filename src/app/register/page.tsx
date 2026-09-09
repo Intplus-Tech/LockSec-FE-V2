@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import Link from "next/link";
 import { MobileShell } from "@/components/layout/mobile-shell";
 import { ResidentRegisterForm } from "./register-form";
@@ -35,7 +36,11 @@ export default function ResidentRegisterPage() {
         </>
       }
     >
-      <ResidentRegisterForm />
+      {/* Reads ?estate= from the URL — unknown while prerendering, so the
+          form needs a Suspense boundary around it. */}
+      <Suspense fallback={<div className="h-96" aria-hidden="true" />}>
+        <ResidentRegisterForm />
+      </Suspense>
     </MobileShell>
   );
 }

@@ -158,7 +158,24 @@ export const DURATIONS = [
 
 export const dueFormSchema = z.object({
   name: z.string().min(2, "Give the due a name"),
-  amount: z.coerce.number().min(1, "Enter an amount"),
+  /**
+   * A plain number, NOT z.coerce.number().
+   *
+   * `z.coerce` makes a schema's INPUT type `unknown` while its output stays
+   * `number`. React Hook Form's `useForm<T>` takes one type for both, so the
+   * two disagree and TypeScript rejects the resolver. It compiles under
+   * `next dev`, which does not typecheck, and fails the production build.
+   *
+   * The fix is to let React Hook Form do the conversion instead:
+   *
+   *     register("amount", { valueAsNumber: true })
+   *
+   * The form hands Zod a real number and the schema simply validates it.
+   * `error` below covers the empty-field case, which arrives as NaN.
+   */
+  amount: z
+    .number({ error: "Enter an amount" })
+    .min(1, "Enter an amount"),
   duration: z.enum(["daily", "weekly", "monthly", "quarterly", "yearly"]),
   accountName: z.string().min(2, "Account name is required"),
   // A string, not a number: account numbers have leading zeros that a numeric

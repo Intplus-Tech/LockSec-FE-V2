@@ -36,15 +36,18 @@ export const VISITOR_TYPES = [
  *
  * When the backend is fixed, delete this constant and send `undefined`.
  */
-export const NO_VEHICLE_PLATE = "NO VEHICLE";
+export const NO_VEHICLE_PLATE = "N/A";
 
 export const createAccessCodeFormSchema = z
   .object({
     visitorType: z.enum(["guest", "dispatch", "cab", "artisan"]),
     firstName: z.string().min(1, "First name is required"),
     lastName: z.string().min(1, "Last name is required"),
-    numOfPeople: z.coerce
-      .number()
+    // A plain number rather than z.coerce.number(); the form converts with
+    // `valueAsNumber`. See the note in lib/schemas/admin.ts for why coerce
+    // breaks the production build.
+    numOfPeople: z
+      .number({ error: "Enter a number" })
       .int("Enter a whole number")
       .min(1, "At least one person")
       .max(50, "That seems too many — check with your estate office"),

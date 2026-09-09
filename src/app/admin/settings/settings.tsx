@@ -660,7 +660,9 @@ function DueForm({
           inputMode="numeric"
           min={1}
           placeholder="₦0"
-          {...register("amount")}
+          // valueAsNumber makes React Hook Form convert the input's string
+          // to a number before Zod sees it — see the note in the schema.
+          {...register("amount", { valueAsNumber: true })}
         />
       </Field>
 

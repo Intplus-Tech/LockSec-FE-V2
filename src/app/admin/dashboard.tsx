@@ -326,11 +326,7 @@ export function AdminDashboard() {
         <Pagination page={page} pageCount={pageCount} onChange={setPage} />
       </section>
 
-      <PlanModal
-        open={planOpen}
-        onClose={() => setPlanOpen(false)}
-        onChoose={() => setPlanOpen(false)}
-      />
+      <PlanModal open={planOpen} onClose={() => setPlanOpen(false)} />
     </AdminShell>
   );
 }

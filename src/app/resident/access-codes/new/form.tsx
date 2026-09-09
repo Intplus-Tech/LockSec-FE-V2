@@ -85,7 +85,7 @@ export function GenerateCodeForm() {
           type="number"
           inputMode="numeric"
           min={1}
-          {...register("numOfPeople")}
+          {...register("numOfPeople", { valueAsNumber: true })}
         />
       </Field>
 

@@ -18,39 +18,12 @@ import { refSchema } from "@/lib/schemas/ref";
    Access codes
    ------------------------------------------------------------------------- */
 
-export const VISITOR_TYPES = [
-  { value: "guest", label: "Guest" },
-  { value: "dispatch", label: "Dispatch" },
-  { value: "cab", label: "Cab" },
-  { value: "artisan", label: "Artisan" },
-] as const;
 
-export const createAccessCodeSchema = z
-  .object({
-    visitorType: z.enum(["guest", "dispatch", "cab", "artisan"]),
-    firstName: z.string().min(1, "First name is required"),
-    lastName: z.string().min(1, "Last name is required"),
-    numOfPeople: z.coerce
-      .number()
-      .int("Enter a whole number")
-      .min(1, "At least one person")
-      .max(50, "That seems too many — check with your estate office"),
-    phoneNumber: z
-      .string()
-      .min(7, "Enter a valid phone number")
-      .max(20, "Enter a valid phone number"),
-    withVehicle: z.boolean(),
-    plateNum: z.string().optional(),
-  })
-  // The API requires a plate number when a vehicle is coming. Expressing that
-  // here keeps the rule beside the data rather than buried in a submit
-  // handler, and points the error at the right field.
-  .refine((data) => !data.withVehicle || Boolean(data.plateNum?.trim()), {
-    error: "Plate number is required when a vehicle is coming",
-    path: ["plateNum"],
-  });
-
-export type CreateAccessCodeInput = z.infer<typeof createAccessCodeSchema>;
+/**
+ * The access-code FORM schema lives in lib/schemas/access-code.ts, not here.
+ * It moved when the plate-number rules were added, and the copy that used to
+ * sit at this spot was dead code.
+ */
 
 export const accessCodeSchema = z.object({
   _id: z.string(),
