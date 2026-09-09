@@ -1,0 +1,265 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ==========================================================================
+   LockSec design tokens
+   --------------------------------------------------------------------------
+   Read off the Figma screens. Everything visual should reference a token from
+   this file rather than a raw hex value, so a designer's change happens in
+   one place.
+
+   Tailwind v4 note: there is no tailwind.config.js. The @theme block below IS
+   the config — each --color-* entry generates the matching utility classes.
+   ========================================================================== */
+
+@theme {
+  /* --- Dark surfaces ----------------------------------------------------- */
+  --color-ink: #0d0d17;
+  --color-ink-soft: #14141f;
+  --color-ink-line: #24243a;
+
+  --color-slab: #2c2c2c;
+  --color-slab-field: #3a3a3a;
+  --color-slab-line: #4a4a4a;
+
+  /* --- Blues -------------------------------------------------------------
+     Two blues, deliberately. The mobile apps use the brighter one; the
+     desktop admin uses the deeper one. Both appear in the Figma. */
+  --color-brand: #2563eb;
+  --color-brand-hover: #1d4ed8;
+  --color-brand-deep: #1a28c8;
+  --color-brand-deep-hover: #1520a6;
+  --color-brand-navy: #1e3a8a;
+  --color-brand-tint: #eff4ff;
+
+  /* --- Light surfaces ---------------------------------------------------- */
+  --color-canvas: #f4f6ff;
+  --color-surface: #ffffff;
+  --color-hairline: #e4e7ec;
+  --color-hairline-strong: #d0d5dd;
+
+  /* --- Text -------------------------------------------------------------- */
+  --color-heading: #101828;
+  --color-body: #344054;
+  --color-muted: #667085;
+  --color-faint: #98a2b3;
+
+  /* --- Status ------------------------------------------------------------ */
+  --color-ok: #12b76a;
+  --color-ok-tint: #ecfdf3;
+  --color-warn: #f79009;
+  --color-warn-tint: #fffaeb;
+  --color-bad: #f04438;
+  --color-bad-tint: #fef3f2;
+
+  /* --- Resident dashboard tiles ------------------------------------------ */
+  --color-tile-stat: #2f3b4f;
+  --color-tile-stat-fg: #a9c1e8;
+  --color-tile-code: #26382d;
+  --color-tile-code-fg: #79c99a;
+  --color-tile-bill: #423618;
+  --color-tile-bill-fg: #e0b94a;
+  --color-tile-history: #1e3639;
+  --color-tile-history-fg: #6fc6c9;
+  --color-tile-profile: #48246b;
+  --color-tile-profile-fg: #c79bea;
+
+  --color-chart-line: #2e9e5b;
+
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+
+  /* --- Fluid type --------------------------------------------------------
+     clamp(minimum, preferred, maximum). The middle term scales with viewport
+     width, so type grows smoothly between a phone and a desktop rather than
+     jumping at breakpoints.
+
+     This is why the components below have no `text-2xl sm:text-3xl
+     lg:text-4xl` chains. One class covers every screen, and there is no width
+     where the size is wrong because nobody thought to add a breakpoint for
+     it — including the awkward 320-360px range and the 600-700px tablet
+     range that breakpoint chains usually miss.
+
+     The minimums are set so the largest heading still fits a 320px screen. */
+  --text-display: clamp(1.75rem, 1.1rem + 3.1vw, 2.5rem);
+  --text-display--line-height: 1.1;
+  --text-display--letter-spacing: -0.02em;
+
+  --text-title: clamp(1.5rem, 1.1rem + 2vw, 2.25rem);
+  --text-title--line-height: 1.15;
+  --text-title--letter-spacing: -0.02em;
+
+  --text-hero: clamp(2.25rem, 1.4rem + 4.2vw, 3.75rem);
+  --text-hero--line-height: 1.05;
+  --text-hero--letter-spacing: -0.03em;
+
+  /* --- Radii -------------------------------------------------------------
+     Three steps. Inputs and buttons share the middle value so a button under
+     a field lines up with it. */
+  --radius-field: 0.5rem;
+  --radius-card: 0.75rem;
+  --radius-sheet: 1rem;
+}
+
+/* --------------------------------------------------------------------------
+   shadcn/ui variables mapped onto the LockSec palette, so generated
+   components arrive already wearing the right clothes.
+   -------------------------------------------------------------------------- */
+
+:root {
+  --radius: 0.5rem;
+
+  --background: #ffffff;
+  --foreground: #101828;
+  --card: #ffffff;
+  --card-foreground: #101828;
+  --popover: #ffffff;
+  --popover-foreground: #101828;
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
+  --secondary: #f4f6ff;
+  --secondary-foreground: #101828;
+  --muted: #f4f6ff;
+  --muted-foreground: #667085;
+  --accent: #eff4ff;
+  --accent-foreground: #1a28c8;
+  --destructive: #f04438;
+  --destructive-foreground: #ffffff;
+  --border: #e4e7ec;
+  --input: #e4e7ec;
+  --ring: #2563eb;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted-surface: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 6px);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    /* Nothing should ever scroll sideways. If one element overflows, this
+       stops it dragging the whole page with it — the most common reason a
+       responsive layout "feels broken" on a phone. */
+    overflow-x: hidden;
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Long unbroken strings — an email address, a reference number, a pasted
+     URL — are the other common cause of horizontal overflow. */
+  h1,
+  h2,
+  h3,
+  p,
+  span,
+  td,
+  th,
+  label,
+  a {
+    overflow-wrap: break-word;
+  }
+
+  /* Every interactive element gets a visible focus ring. Removing focus
+     outlines is the single most common accessibility failure in dashboards
+     like this one — a keyboard user cannot see where they are. */
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* iOS zooms the whole page in when a focused input's text is smaller than
+     16px, then leaves it zoomed. Setting 16px on mobile prevents that
+     jarring zoom-and-reflow; above 640px we can use the smaller design size
+     because desktop browsers do not do this. */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  @media (min-width: 640px) {
+    input,
+    select,
+    textarea {
+      font-size: 0.875rem;
+    }
+  }
+}
+
+/* --------------------------------------------------------------------------
+   The starfield texture behind dark headers. Drawn in CSS rather than shipped
+   as an image: a few hundred bytes, scales to any size, and costs no network
+   request on a phone at a gate on poor signal.
+   -------------------------------------------------------------------------- */
+@utility surface-stars {
+  background-color: var(--color-ink);
+  background-image:
+    radial-gradient(1px 1px at 20% 30%, rgba(255, 255, 255, 0.35) 50%, transparent 50%),
+    radial-gradient(1px 1px at 70% 15%, rgba(255, 255, 255, 0.25) 50%, transparent 50%),
+    radial-gradient(1px 1px at 45% 70%, rgba(255, 255, 255, 0.2) 50%, transparent 50%),
+    radial-gradient(1px 1px at 88% 55%, rgba(255, 255, 255, 0.3) 50%, transparent 50%),
+    radial-gradient(1px 1px at 12% 80%, rgba(255, 255, 255, 0.22) 50%, transparent 50%),
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size:
+    100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%, 64px 64px, 64px 64px;
+}
+
+/* The light equivalent behind estate-admin auth pages: a pale grid with a
+   soft blue bloom in the upper right. */
+@utility surface-grid {
+  background-color: #fbfcff;
+  background-image:
+    radial-gradient(
+      ellipse 40% 35% at 78% 22%,
+      rgba(37, 99, 235, 0.13),
+      transparent 70%
+    ),
+    linear-gradient(rgba(37, 99, 235, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(37, 99, 235, 0.05) 1px, transparent 1px);
+  background-size: 100% 100%, 78px 78px, 78px 78px;
+}
+
+/* Respect the operating-system setting. Someone who gets motion sickness has
+   already told their device; we should not override that. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
