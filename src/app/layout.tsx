@@ -17,10 +17,31 @@ const jakarta = Plus_Jakarta_Sans({
   display: "swap",
 });
 
+/**
+ * `??` only catches `undefined`/`null` — not an empty string or a value
+ * that's missing its protocol (e.g. `locksec.app` instead of
+ * `https://locksec.app`). Either of those makes `new URL()` throw, which
+ * previously crashed the entire production build. Fall back instead of
+ * failing the build over a bad env value.
+ */
+function siteUrl(): URL {
+  const raw = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (raw) {
+    try {
+      return new URL(raw);
+    } catch {
+      console.warn(
+        `NEXT_PUBLIC_SITE_URL is not a valid absolute URL ("${raw}") — ` +
+          "falling back to https://locksec.app. Set it in Vercel " +
+          "with a scheme, e.g. https://locksec.app",
+      );
+    }
+  }
+  return new URL("https://locksec.app");
+}
+
 export const metadata: Metadata = {
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL ?? "https://locksec.app",
-  ),
+  metadataBase: siteUrl(),
   title: {
     default: "LockSec — Estate access control",
     // Every page sets its own title; this frames it.
