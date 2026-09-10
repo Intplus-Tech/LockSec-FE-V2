@@ -109,7 +109,16 @@ export function DuesChart({
 
   return (
     <figure className="w-full">
-      <div className="relative">
+      {/*
+        On a 375px screen a 900-unit-wide viewBox is scaled down 2.4x, which
+        turns 11px axis labels into roughly 4px — unreadable. Rather than
+        shrink the type or drop the labels, the chart keeps its natural size
+        and scrolls horizontally on small screens only.
+        A chart is one of the few things worth scrolling sideways for: it is a
+        single wide object, not a grid of data where scrolling hides columns.
+      */}
+      <div className="-mx-1 overflow-x-auto px-1 pb-1">
+      <div className="relative min-w-[36rem]">
         <svg
           viewBox={`0 0 ${width} ${height}`}
           className="w-full"
@@ -200,15 +209,18 @@ export function DuesChart({
             No payments recorded this year yet
           </p>
         ) : null}
-      </div>
 
-      <div
-        className="mt-1 flex justify-between text-[0.65rem] text-faint"
-        style={{ paddingLeft: "8.6%", paddingRight: "1.8%" }}
-      >
-        {MONTHS.map((month) => (
-          <span key={month}>{month}</span>
-        ))}
+        {/* Inside the min-width wrapper so the month labels scroll in step
+            with the chart rather than drifting out of alignment. */}
+        <div
+          className="mt-1 flex justify-between text-[0.65rem] text-faint"
+          style={{ paddingLeft: "8.6%", paddingRight: "1.8%" }}
+        >
+          {MONTHS.map((month) => (
+            <span key={month}>{month}</span>
+          ))}
+        </div>
+        </div>
       </div>
 
       {hovered !== null ? (

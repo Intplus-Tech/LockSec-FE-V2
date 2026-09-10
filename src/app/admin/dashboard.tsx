@@ -205,8 +205,8 @@ export function AdminDashboard() {
         },
       }}
     >
-      <section className="rounded-card bg-white/60 p-5 sm:p-6">
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_2fr]">
+      <section className="rounded-card bg-white/60 p-4 sm:p-5 lg:p-6">
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_2fr] lg:gap-6">
           <div>
             <h2 className="font-bold text-heading">Estate Info.</h2>
             {estate.isLoading ? (
@@ -249,7 +249,7 @@ export function AdminDashboard() {
             ) : null}
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-3 min-[420px]:grid-cols-2 sm:gap-4 lg:grid-cols-3">
             <StatCard
               value={formatNaira(collected)}
               label={`Amount Collected ${PERIODS.find((p) => p.value === period)?.label ?? ""}`}
@@ -272,7 +272,7 @@ export function AdminDashboard() {
         </div>
       </section>
 
-      <section className="mt-5 rounded-card bg-white p-5 shadow-sm sm:p-6">
+      <section className="mt-4 rounded-card bg-white p-4 shadow-sm sm:mt-5 sm:p-5 lg:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-4">
             <h2 className="font-bold text-heading">Dues Payment</h2>

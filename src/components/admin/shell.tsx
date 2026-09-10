@@ -83,7 +83,7 @@ export function AdminShell({
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-hairline bg-white transition-transform lg:translate-x-0",
+          "fixed inset-y-0 left-0 z-40 flex w-[17rem] max-w-[85vw] flex-col overflow-y-auto border-r border-hairline bg-white transition-transform lg:w-64 lg:translate-x-0",
           navOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
@@ -155,8 +155,12 @@ export function AdminShell({
       ) : null}
 
       <div className="lg:pl-64">
-        <header className="flex flex-wrap items-start justify-between gap-4 px-5 py-5 sm:px-8">
-          <div className="flex min-w-0 items-start gap-3">
+        {/* On a phone the title row and the search cannot share a line
+            without squeezing both, so the search wraps to its own full-width
+            row below. flex-wrap plus a full-width basis on the search does
+            that without a breakpoint-specific layout. */}
+        <header className="flex flex-wrap items-start gap-x-4 gap-y-3 px-4 py-4 sm:px-6 sm:py-5 lg:px-8">
+          <div className="flex min-w-0 flex-1 items-start gap-2 sm:gap-3">
             <button
               type="button"
               onClick={() => setNavOpen(true)}
@@ -168,15 +172,19 @@ export function AdminShell({
 
             <div className="min-w-0">
               <p className="text-sm text-muted">Pages / {breadcrumb}</p>
-              <h1 className="mt-1 truncate text-2xl font-extrabold tracking-tight text-heading sm:text-3xl">
+              {/* Not `truncate` — "Security Personnel Management" would be
+                  cut to nothing useful on a phone. It wraps instead. */}
+              <h1 className="mt-0.5 text-xl font-extrabold leading-tight tracking-tight text-heading sm:text-2xl lg:text-3xl">
                 {title}
               </h1>
             </div>
           </div>
 
-          <div className="flex flex-1 items-center justify-end gap-3 sm:flex-none">
+          {/* order-last + w-full below sm puts the search on its own row;
+              from sm upward it sits inline at its natural width. */}
+          <div className="order-last flex w-full items-center gap-2 sm:order-none sm:w-auto sm:flex-none">
             {search ? (
-              <div className="relative w-full max-w-xs">
+              <div className="relative w-full sm:w-56 lg:w-64">
                 <label htmlFor="global-search" className="sr-only">
                   Search
                 </label>
@@ -195,7 +203,7 @@ export function AdminShell({
               </div>
             ) : null}
 
-            <div className="flex shrink-0 items-center gap-1 rounded-full bg-white px-2 py-1.5 shadow-sm">
+            <div className="ml-auto flex shrink-0 items-center gap-1 rounded-full bg-white px-1.5 py-1.5 shadow-sm sm:ml-0 sm:px-2">
               <button
                 type="button"
                 aria-label="Notifications"
@@ -217,9 +225,11 @@ export function AdminShell({
               {/* The avatar in the Figma is a photo. There is no avatar field
                   anywhere in the API, so this is the initial-less fallback
                   every avatar component needs anyway. */}
+              {/* Decorative only, and it costs 40px of a 375px bar. Hidden
+                  on the narrowest screens where the icons matter more. */}
               <span
                 aria-hidden="true"
-                className="inline-flex size-10 items-center justify-center rounded-full bg-canvas text-muted"
+                className="hidden size-10 items-center justify-center rounded-full bg-canvas text-muted min-[420px]:inline-flex"
               >
                 <UserRound className="size-5" />
               </span>
@@ -227,7 +237,7 @@ export function AdminShell({
           </div>
         </header>
 
-        <main id="main" className="px-5 pb-12 sm:px-8">
+        <main id="main" className="px-4 pb-12 sm:px-6 lg:px-8">
           {actions ? <div className="mb-5">{actions}</div> : null}
           {children}
         </main>

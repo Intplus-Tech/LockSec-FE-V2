@@ -1,0 +1,6304 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "LockSec Doc API",
+    "version": "1.0.0",
+    "description": "Base URL: `/api/v1`\n\nAll successful responses follow `{ message, data }`. Errors follow `{ message, statusCode, timestamp, path, method }`.\n\nFor protected endpoints, pass `Authorization: Bearer <JWT>`."
+  },
+  "servers": [
+    {
+      "url": "https://locksec-be-ver2.onrender.com/api/v1",
+      "description": "Production Server"
+    },
+    {
+      "url": "http://localhost:5007/api/v1",
+      "description": "Development Server"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "ObjectId": {
+        "type": "string",
+        "example": "67f2c3a8b1d9e4f123456789",
+        "description": "MongoDB ObjectId"
+      },
+      "ISODate": {
+        "type": "string",
+        "format": "date-time",
+        "example": "2026-03-26T12:30:00.000Z",
+        "description": "ISO 8601 date string"
+      },
+      "SuccessResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "message": {
+            "type": "string",
+            "example": "Request successful"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": false
+          },
+          "message": {
+            "type": "string",
+            "example": "Something went wrong"
+          },
+          "error": {
+            "type": "string",
+            "example": "BAD_REQUEST"
+          }
+        }
+      },
+      "ValidationErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": false
+          },
+          "message": {
+            "type": "string",
+            "example": "Validation failed"
+          },
+          "error": {
+            "type": "string",
+            "example": "VALIDATION_ERROR"
+          },
+          "details": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "field": {
+                  "type": "string",
+                  "example": "email"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Email is required"
+                }
+              }
+            }
+          }
+        }
+      },
+      "NotFoundResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": false
+          },
+          "message": {
+            "type": "string",
+            "example": "Resource not found"
+          },
+          "error": {
+            "type": "string",
+            "example": "NOT_FOUND"
+          }
+        }
+      },
+      "UnauthorizedResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": false
+          },
+          "message": {
+            "type": "string",
+            "example": "Unauthorized"
+          },
+          "error": {
+            "type": "string",
+            "example": "UNAUTHORIZED"
+          }
+        }
+      },
+      "ForbiddenResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": false
+          },
+          "message": {
+            "type": "string",
+            "example": "Forbidden"
+          },
+          "error": {
+            "type": "string",
+            "example": "FORBIDDEN"
+          }
+        }
+      },
+      "PaginationMeta": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer",
+            "example": 1
+          },
+          "limit": {
+            "type": "integer",
+            "example": 10
+          },
+          "total": {
+            "type": "integer",
+            "example": 125
+          },
+          "totalPages": {
+            "type": "integer",
+            "example": 13
+          }
+        }
+      },
+      "PaginatedResponseBase": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "message": {
+            "type": "string",
+            "example": "Request successful"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PaginationMeta"
+          }
+        }
+      },
+      "RegisterEstateRequest": {
+        "type": "object",
+        "required": [
+          "estateName",
+          "fullName",
+          "email",
+          "phoneNumber",
+          "password"
+        ],
+        "properties": {
+          "estateName": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 120,
+            "example": "Green House Estate"
+          },
+          "fullName": {
+            "type": "string",
+            "minLength": 2,
+            "example": "Green House Admin"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Email must be valid and must not contain '+' in the local part",
+            "example": "estateadmin@example.com"
+          },
+          "phoneNumber": {
+            "type": "string",
+            "minLength": 7,
+            "maxLength": 20,
+            "example": "+2348012345678"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 72,
+            "description": "Must contain at least one uppercase letter, one lowercase letter, and one number",
+            "example": "Password123"
+          }
+        }
+      },
+      "RegisterResidentRequest": {
+        "type": "object",
+        "required": [
+          "estateId",
+          "firstName",
+          "lastName",
+          "email",
+          "phoneNumber",
+          "moveInDate",
+          "address",
+          "password"
+        ],
+        "properties": {
+          "estateId": {
+            "type": "string",
+            "example": "67f2c1f5b1a2c3d4e5f67890"
+          },
+          "firstName": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 120,
+            "example": "Green House Estate"
+          },
+          "lastName": {
+            "type": "string",
+            "minLength": 2,
+            "example": "Green House Admin"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Email must be valid and must not contain '+' in the local part",
+            "example": "estateadmin@example.com"
+          },
+          "phoneNumber": {
+            "type": "string",
+            "minLength": 7,
+            "maxLength": 20,
+            "example": "+2348012345678"
+          },
+          "moveInDate": {
+            "type": "Date",
+            "description": "Resident's move-in date",
+            "example": "2026-03-26"
+          },
+          "address": {
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 200,
+            "example": "123 Main St, Green House Estate"
+          },
+          "businessName": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 120,
+            "example": "Green House Store"
+          },
+          "industryType": {
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 200,
+            "example": "agriculture"
+          },
+          "role": {
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 200,
+            "example": "resident"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 72,
+            "description": "Must contain at least one uppercase letter, one lowercase letter, and one number",
+            "example": "Password123"
+          }
+        }
+      },
+      "verifyEmailByTokenRequest": {
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "properties": {
+          "token": {
+            "type": "string",
+            "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.one.time.token"
+          }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Email must be valid and must not contain '+' in the local part",
+            "example": "ben@example.com"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "example": "Password123"
+          }
+        }
+      },
+      "RefreshTokenRequest": {
+        "type": "object",
+        "required": [
+          "refreshToken"
+        ],
+        "properties": {
+          "refreshToken": {
+            "type": "string",
+            "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh.token"
+          }
+        }
+      },
+      "RefreshTokenResponse": {
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "properties": {
+          "token": {
+            "type": "string",
+            "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.access.token"
+          }
+        }
+      },
+      "ResendVerificationEmailRequest": {
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Email must be valid and must not contain '+' in the local part",
+            "example": "ben@example.com"
+          }
+        }
+      },
+      "ForgotPasswordRequest": {
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Email must be valid and must not contain '+' in the local part",
+            "example": "ben@example.com"
+          }
+        }
+      },
+      "ResetPasswordRequest": {
+        "type": "object",
+        "required": [
+          "token",
+          "newPassword"
+        ],
+        "properties": {
+          "token": {
+            "type": "string",
+            "example": "236477"
+          },
+          "newPassword": {
+            "type": "string",
+            "minLength": 8,
+            "example": "NewPassword123"
+          }
+        }
+      },
+      "ResendForgotPasswordEmailRequest": {
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Email must be valid and must not contain '+' in the local part",
+            "example": "ben@example.com"
+          }
+        }
+      },
+      "AuthResponse": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "type": "object",
+            "properties": {
+              "_id": {
+                "type": "string",
+                "example": "67f2c1f5b1a2c3d4e5f67890"
+              },
+              "email": {
+                "type": "string",
+                "format": "email",
+                "example": "estateadmin@example.com"
+              },
+              "role": {
+                "type": "string",
+                "enum": [
+                  "resident",
+                  "estate_admin",
+                  "security",
+                  "super_admin"
+                ],
+                "example": "resident"
+              },
+              "estateId": {
+                "type": "string",
+                "nullable": true,
+                "example": "67f2c1f5b1a2c3d4e5f67890"
+              }
+            }
+          },
+          "token": {
+            "type": "string",
+            "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.access.token"
+          },
+          "refreshToken": {
+            "type": "string",
+            "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh.token"
+          }
+        }
+      },
+      "AuthEstate": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string",
+            "example": "67f2c1f5b1a2c3d4e5f67890"
+          },
+          "fullName": {
+            "type": "string",
+            "example": "Green House Admin"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "estateadmin@example.com"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "estate_admin"
+            ],
+            "example": "estate_admin"
+          },
+          "status": {
+            "type": "string",
+            "example": "pending"
+          },
+          "isVerified": {
+            "type": "boolean",
+            "example": false
+          },
+          "lastLoginAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "example": "2026-03-26T08:00:00.000Z"
+          },
+          "lastActiveAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "example": "2026-03-26T08:10:00.000Z"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-03-25T12:00:00.000Z"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-03-26T08:10:00.000Z"
+          }
+        }
+      },
+      "AuthResident": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string",
+            "example": "67f2c1f5b1a2c3d4e5f67890"
+          },
+          "estateId": {
+            "type": "string",
+            "example": "67f2c1f5b1a2c3d4e5f67890"
+          },
+          "firstName": {
+            "type": "string",
+            "example": "Green House Admin"
+          },
+          "lastName": {
+            "type": "string",
+            "example": "Green House Admin"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "estateadmin@example.com"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "resident",
+              "business_owner"
+            ],
+            "example": "resident"
+          },
+          "status": {
+            "type": "string",
+            "example": "pending"
+          },
+          "isVerified": {
+            "type": "boolean",
+            "example": false
+          },
+          "lastLoginAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "example": "2026-03-26T08:00:00.000Z"
+          },
+          "lastActiveAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "example": "2026-03-26T08:10:00.000Z"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-03-25T12:00:00.000Z"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-03-26T08:10:00.000Z"
+          }
+        }
+      },
+      "RegisterEstateResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "Registration successful. Please verify your email."
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "user": {
+                "$ref": "#/components/schemas/AuthEstate"
+              }
+            }
+          }
+        }
+      },
+      "RegisterResidentResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "Registration successful. Please verify your email."
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "user": {
+                "$ref": "#/components/schemas/AuthResident"
+              }
+            }
+          }
+        }
+      },
+      "GenericSuccessResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "Operation completed successfully"
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": true,
+            "example": {}
+          }
+        }
+      },
+      "UserResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "UpdateUserInput": {
+        "type": "object",
+        "properties": {
+          "firstName": {
+            "type": "string",
+            "minLength": 2,
+            "example": "Ada"
+          },
+          "lastName": {
+            "type": "string",
+            "minLength": 2,
+            "example": "Lovelace"
+          },
+          "phoneNumber": {
+            "type": "string",
+            "minLength": 6,
+            "maxLength": 32,
+            "example": "+2348012345678"
+          },
+          "address": {
+            "type": "string",
+            "minLength": 2,
+            "example": "12 Emerald Close"
+          }
+        }
+      },
+      "CreatePlanInput": {
+        "type": "object",
+        "required": [
+          "type",
+          "price",
+          "description",
+          "features"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "The type of the plan"
+          },
+          "price": {
+            "type": "number",
+            "description": "The price of the plan"
+          },
+          "description": {
+            "type": "string",
+            "description": "A brief description of the plan"
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "A list of features included in the plan"
+          }
+        }
+      },
+      "UpdatePlanInput": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "The type of the plan"
+          },
+          "price": {
+            "type": "number",
+            "description": "The price of the plan"
+          },
+          "description": {
+            "type": "string",
+            "description": "A brief description of the plan"
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "A list of features included in the plan"
+          }
+        }
+      },
+      "PlanResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The ID of the plan"
+          },
+          "type": {
+            "type": "string",
+            "description": "The type of the plan"
+          },
+          "price": {
+            "type": "number",
+            "description": "The price of the plan"
+          },
+          "description": {
+            "type": "string",
+            "description": "A brief description of the plan"
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "A list of features included in the plan"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The date and time when the plan was created"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The date and time when the plan was last updated"
+          }
+        }
+      },
+      "CreateSecurityInput": {
+        "type": "object",
+        "required": [
+          "companyName",
+          "firstName",
+          "lastName",
+          "middleName",
+          "address",
+          "phoneNumber"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Email for the security's auth account",
+            "example": "sec@gmail.com"
+          },
+          "securityCompany": {
+            "type": "string",
+            "description": "The name of the company this security belongs to",
+            "example": "OffSec.com"
+          },
+          "firstName": {
+            "type": "string",
+            "description": "The first name of the security",
+            "example": "Van"
+          },
+          "lastName": {
+            "type": "string",
+            "description": "The last name of the security",
+            "example": "Hu"
+          },
+          "middleName": {
+            "type": "string",
+            "description": "The middle name of the security",
+            "example": "Lin"
+          },
+          "address": {
+            "type": "string",
+            "description": "The address of the security",
+            "example": "12 Emerald Close"
+          },
+          "phoneNumber": {
+            "type": "string",
+            "description": "The phone number of the security",
+            "example": "1234567890"
+          }
+        }
+      },
+      "UpdateSecurityInput": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Email for the security's auth account",
+            "example": "sec@gmail.com"
+          },
+          "securityCompany": {
+            "type": "string",
+            "description": "The name of the company this security belongs to",
+            "example": "OffSec.com"
+          },
+          "firstName": {
+            "type": "string",
+            "description": "The first name of the security",
+            "example": "Van"
+          },
+          "lastName": {
+            "type": "string",
+            "description": "The last name of the security",
+            "example": "Hu"
+          },
+          "middleName": {
+            "type": "string",
+            "description": "The middle name of the security",
+            "example": "Lin"
+          },
+          "address": {
+            "type": "string",
+            "description": "The address of the security",
+            "example": "12 Emerald Close"
+          },
+          "phoneNumber": {
+            "type": "string",
+            "description": "The phone number of the security",
+            "example": "1234567890"
+          }
+        }
+      },
+      "SecurityResponse": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string",
+            "description": "The ID of the security",
+            "example": "64f1a2b3c4d5e6f7a8b9c0d1"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Email for the security's auth account",
+            "example": "sec@gmail.com"
+          },
+          "securityCompany": {
+            "type": "string",
+            "description": "The name of the company this security belongs to",
+            "example": "OffSec.com"
+          },
+          "firstName": {
+            "type": "string",
+            "description": "The first name of the security",
+            "example": "Van"
+          },
+          "lastName": {
+            "type": "string",
+            "description": "The last name of the security",
+            "example": "Hu"
+          },
+          "middleName": {
+            "type": "string",
+            "description": "The middle name of the security",
+            "example": "Lin"
+          },
+          "address": {
+            "type": "string",
+            "description": "The address of the security",
+            "example": "12 Emerald Close"
+          },
+          "phoneNumber": {
+            "type": "string",
+            "description": "The phone number of the security",
+            "example": "1234567890"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The date and time when the plan was created"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The date and time when the plan was last updated"
+          }
+        }
+      },
+      "SecurityLoginRequest": {
+        "type": "object",
+        "required": [
+          "securityCode"
+        ],
+        "properties": {
+          "securityCode": {
+            "type": "string",
+            "format": "securityCode",
+            "description": "The code of the security",
+            "example": "123456"
+          }
+        }
+      },
+      "CreateEstateInput": {
+        "type": "object",
+        "required": [
+          "estateName",
+          "fullName",
+          "email",
+          "password",
+          "phoneNumber"
+        ],
+        "properties": {
+          "estateName": {
+            "type": "string",
+            "description": "The name of the estate"
+          },
+          "fullName": {
+            "type": "string",
+            "description": "The full name of the estate"
+          },
+          "phoneNumber": {
+            "type": "string",
+            "description": "The phone number of the estate"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "The email of the estate"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "description": "The password of the estate"
+          }
+        }
+      },
+      "UpdateEstateInput": {
+        "type": "object",
+        "required": [
+          "estateName",
+          "fullName",
+          "email",
+          "password",
+          "phoneNumber"
+        ],
+        "properties": {
+          "estateName": {
+            "type": "string",
+            "description": "The name of the estate"
+          },
+          "fullName": {
+            "type": "string",
+            "description": "The full name of the estate"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "The email of the estate"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "description": "The password of the estate"
+          },
+          "phoneNumber": {
+            "type": "string",
+            "description": "The phone number of the estate"
+          }
+        }
+      },
+      "EstateResponse": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string",
+            "description": "The ID of the estate"
+          },
+          "estateName": {
+            "type": "string",
+            "description": "The name of the estate"
+          },
+          "fullName": {
+            "type": "string",
+            "description": "The full name of the estate"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "The email of the estate"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "description": "The password of the estate"
+          },
+          "phoneNumber": {
+            "type": "string",
+            "description": "The phone number of the estate"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The date and time when the estate was created"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The date and time when the estate was last updated"
+          }
+        }
+      },
+      "CreateResidentInput": {
+        "type": "object",
+        "required": [
+          "firstName",
+          "lastName",
+          "address",
+          "phoneNumber",
+          "moveInDate",
+          "role",
+          "email",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Email for the resident's auth account",
+            "example": "john.doe@email.com"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "description": "Password for the resident's auth account",
+            "example": "Password@123"
+          },
+          "estateId": {
+            "type": "string",
+            "description": "The ID of the estate this resident belongs to",
+            "example": "64f1a2b3c4d5e6f7a8b9c0d1"
+          },
+          "firstName": {
+            "type": "string",
+            "description": "First name of the resident",
+            "example": "John"
+          },
+          "lastName": {
+            "type": "string",
+            "description": "Last name of the resident",
+            "example": "Doe"
+          },
+          "address": {
+            "type": "string",
+            "description": "Residential address within the estate",
+            "example": "12 Emerald Close"
+          },
+          "phoneNumber": {
+            "type": "string",
+            "description": "Phone number of the resident",
+            "example": "08012345678"
+          },
+          "moveInDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Date the resident moved in",
+            "example": "2024-01-15"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "business_owner",
+              "resident"
+            ],
+            "description": "Resident role — use business_owner if they run a business on the estate",
+            "example": "resident"
+          },
+          "businessName": {
+            "type": "string",
+            "description": "Business name (required if role is business_owner)",
+            "example": "Doe Ventures"
+          },
+          "industryType": {
+            "type": "string",
+            "enum": [
+              "technology",
+              "finance",
+              "healthcare",
+              "education",
+              "other"
+            ],
+            "description": "Industry type (required if role is business_owner)",
+            "example": "technology"
+          }
+        }
+      },
+      "UpdateResidentInput": {
+        "type": "object",
+        "properties": {
+          "firstName": {
+            "type": "string",
+            "description": "First name of the resident",
+            "example": "John"
+          },
+          "lastName": {
+            "type": "string",
+            "description": "Last name of the resident",
+            "example": "Doe"
+          },
+          "address": {
+            "type": "string",
+            "description": "Residential address within the estate",
+            "example": "12 Emerald Close"
+          },
+          "phoneNumber": {
+            "type": "string",
+            "description": "Phone number of the resident",
+            "example": "08012345678"
+          },
+          "moveInDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Date the resident moved in",
+            "example": "2024-01-15"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "business_owner",
+              "resident"
+            ],
+            "description": "Resident role",
+            "example": "resident"
+          },
+          "businessName": {
+            "type": "string",
+            "description": "Business name (required if role is business_owner)",
+            "example": "Doe Ventures"
+          },
+          "industryType": {
+            "type": "string",
+            "enum": [
+              "technology",
+              "finance",
+              "healthcare",
+              "education",
+              "other"
+            ],
+            "description": "Industry type (required if role is business_owner)",
+            "example": "technology"
+          }
+        }
+      },
+      "ResidentResponse": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string",
+            "description": "The ID of the resident profile",
+            "example": "64f1a2b3c4d5e6f7a8b9c0d1"
+          },
+          "estateId": {
+            "type": "string",
+            "description": "The ID of the estate this resident belongs to",
+            "example": "64f1a2b3c4d5e6f7a8b9c0d2"
+          },
+          "userId": {
+            "type": "string",
+            "description": "The ID of the linked auth user account",
+            "example": "64f1a2b3c4d5e6f7a8b9c0d3"
+          },
+          "firstName": {
+            "type": "string",
+            "description": "First name of the resident",
+            "example": "John"
+          },
+          "lastName": {
+            "type": "string",
+            "description": "Last name of the resident",
+            "example": "Doe"
+          },
+          "address": {
+            "type": "string",
+            "description": "Residential address within the estate",
+            "example": "12 Emerald Close"
+          },
+          "phoneNumber": {
+            "type": "string",
+            "description": "Phone number of the resident",
+            "example": "08012345678"
+          },
+          "moveInDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Date the resident moved in",
+            "example": "2024-01-15"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "business_owner",
+              "resident"
+            ],
+            "description": "Resident role",
+            "example": "resident"
+          },
+          "businessName": {
+            "type": "string",
+            "description": "Business name (if role is business_owner)",
+            "example": "Doe Ventures"
+          },
+          "industryType": {
+            "type": "string",
+            "enum": [
+              "technology",
+              "finance",
+              "healthcare",
+              "education",
+              "other"
+            ],
+            "description": "Industry type (if role is business_owner)",
+            "example": "technology"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the resident profile was created"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the resident profile was last updated"
+          }
+        }
+      },
+      "CreateDueInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "amount",
+          "duration",
+          "accountName",
+          "accountNumber",
+          "bankName"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name of the due/levy (e.g. Monthly Estate Due)",
+            "example": "Monthly Estate Due"
+          },
+          "amount": {
+            "type": "number",
+            "description": "Amount to be paid",
+            "example": 5000
+          },
+          "duration": {
+            "type": "string",
+            "enum": [
+              "daily",
+              "weekly",
+              "monthly",
+              "quarterly",
+              "yearly"
+            ],
+            "description": "How often the due is charged",
+            "example": "monthly"
+          },
+          "accountName": {
+            "type": "string",
+            "description": "Name on the receiving bank account",
+            "example": "Green Estate Management"
+          },
+          "accountNumber": {
+            "type": "number",
+            "description": "Bank account number for due payments",
+            "example": 123456789
+          },
+          "bankName": {
+            "type": "string",
+            "description": "Name of the receiving bank",
+            "example": "First Bank"
+          }
+        }
+      },
+      "UpdateDueInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name of the due/levy",
+            "example": "Monthly Estate Due"
+          },
+          "amount": {
+            "type": "number",
+            "description": "Amount to be paid",
+            "example": 5000
+          },
+          "duration": {
+            "type": "string",
+            "enum": [
+              "daily",
+              "weekly",
+              "monthly",
+              "quarterly",
+              "yearly"
+            ],
+            "description": "How often the due is charged",
+            "example": "monthly"
+          },
+          "accountName": {
+            "type": "string",
+            "description": "Name on the receiving bank account",
+            "example": "Green Estate Management"
+          },
+          "accountNumber": {
+            "type": "number",
+            "description": "Bank account number for due payments",
+            "example": 123456789
+          },
+          "bankName": {
+            "type": "string",
+            "description": "Name of the receiving bank",
+            "example": "First Bank"
+          },
+          "isDueEnabled": {
+            "type": "boolean",
+            "description": "Whether the due is currently active",
+            "example": true
+          }
+        }
+      },
+      "DueResponse": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string",
+            "description": "The ID of the due",
+            "example": "64f1a2b3c4d5e6f7a8b9c0d1"
+          },
+          "estateId": {
+            "type": "string",
+            "description": "The ID of the estate this due belongs to",
+            "example": "64f1a2b3c4d5e6f7a8b9c0d2"
+          },
+          "name": {
+            "type": "string",
+            "description": "Name of the due/levy",
+            "example": "Monthly Estate Due"
+          },
+          "amount": {
+            "type": "number",
+            "description": "Amount to be paid",
+            "example": 5000
+          },
+          "duration": {
+            "type": "string",
+            "enum": [
+              "daily",
+              "weekly",
+              "monthly",
+              "quarterly",
+              "yearly"
+            ],
+            "description": "How often the due is charged",
+            "example": "monthly"
+          },
+          "accountName": {
+            "type": "string",
+            "description": "Name on the receiving bank account",
+            "example": "Green Estate Management"
+          },
+          "accountNumber": {
+            "type": "number",
+            "description": "Bank account number for due payments",
+            "example": "0123456789"
+          },
+          "bankName": {
+            "type": "string",
+            "description": "Name of the receiving bank",
+            "example": "First Bank"
+          },
+          "isDueEnabled": {
+            "type": "boolean",
+            "description": "Whether the due is currently active",
+            "example": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the due was created"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the due was last updated"
+          }
+        }
+      },
+      "CreateAccessCodesInput": {
+        "type": "object",
+        "required": [
+          "visitorType",
+          "firstName",
+          "lastName",
+          "numOfPeople",
+          "phoneNumber"
+        ],
+        "properties": {
+          "visitorType": {
+            "type": "string",
+            "enum": [
+              "guest",
+              "dispatch",
+              "cab",
+              "artisan"
+            ],
+            "description": "Type of visitor",
+            "example": "guest"
+          },
+          "firstName": {
+            "type": "string",
+            "description": "First name of the visitor",
+            "example": "Victor"
+          },
+          "lastName": {
+            "type": "string",
+            "description": "Last name of the visitor",
+            "example": "Lu"
+          },
+          "numOfPeople": {
+            "type": "number",
+            "description": "Number of people visiting",
+            "example": 2
+          },
+          "phoneNumber": {
+            "type": "string",
+            "description": "Phone number of the visitor",
+            "example": "0123456789"
+          },
+          "withVehicle": {
+            "type": "boolean",
+            "description": "Whether the visitor is arriving with a vehicle",
+            "example": false
+          },
+          "plateNum": {
+            "type": "string",
+            "description": "Vehicle plate number (required if withVehicle is true)",
+            "example": "IKJ 827 QX"
+          }
+        }
+      },
+      "UpdateAccessCodesInput": {
+        "type": "object",
+        "properties": {
+          "visitorType": {
+            "type": "string",
+            "enum": [
+              "guest",
+              "dispatch",
+              "cab",
+              "artisan"
+            ],
+            "description": "Type of visitor",
+            "example": "guest"
+          },
+          "firstName": {
+            "type": "string",
+            "description": "First name of the visitor",
+            "example": "Victor"
+          },
+          "lastName": {
+            "type": "string",
+            "description": "Last name of the visitor",
+            "example": "Lu"
+          },
+          "numOfPeople": {
+            "type": "number",
+            "description": "Number of people visiting",
+            "example": 2
+          },
+          "phoneNumber": {
+            "type": "string",
+            "description": "Phone number of the visitor",
+            "example": "0123456789"
+          },
+          "withVehicle": {
+            "type": "boolean",
+            "description": "Whether the visitor is arriving with a vehicle",
+            "example": false
+          },
+          "plateNum": {
+            "type": "string",
+            "description": "Vehicle plate number (required if withVehicle is true)",
+            "example": "IKJ 827 QX"
+          }
+        }
+      },
+      "ValidateAccessCodesInput": {
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "The access code to validate entry",
+            "example": "ABC123"
+          }
+        }
+      },
+      "AccessCodesResponse": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string",
+            "description": "The ID of the access code",
+            "example": "64f1a2b3c4d5e6f7a8b9c0d1"
+          },
+          "estateId": {
+            "type": "string",
+            "description": "The ID of the estate this access code belongs to",
+            "example": "64f1a2b3c4d5e6f7a8b9c0d2"
+          },
+          "userId": {
+            "type": "string",
+            "description": "The ID of the user who created this access code",
+            "example": "64f1a2b3c4d5e6f7a8b9c0d3"
+          },
+          "code": {
+            "type": "string",
+            "description": "The generated access code",
+            "example": "ABC123"
+          },
+          "codeExpiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the access code expires"
+          },
+          "visitorType": {
+            "type": "string",
+            "enum": [
+              "guest",
+              "dispatch",
+              "cab",
+              "artisan"
+            ],
+            "description": "Type of visitor",
+            "example": "guest"
+          },
+          "firstName": {
+            "type": "string",
+            "description": "First name of the visitor",
+            "example": "Victor"
+          },
+          "lastName": {
+            "type": "string",
+            "description": "Last name of the visitor",
+            "example": "Lu"
+          },
+          "numOfPeople": {
+            "type": "number",
+            "description": "Number of people visiting",
+            "example": 2
+          },
+          "phoneNumber": {
+            "type": "string",
+            "description": "Phone number of the visitor",
+            "example": "0123456789"
+          },
+          "withVehicle": {
+            "type": "boolean",
+            "description": "Whether the visitor is arriving with a vehicle",
+            "example": false
+          },
+          "plateNum": {
+            "type": "string",
+            "description": "Vehicle plate number",
+            "example": "IKJ 827 QX"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "inactive",
+              "expired"
+            ],
+            "description": "Current status of the access code",
+            "example": "inactive"
+          },
+          "isAccessCodeEnabled": {
+            "type": "boolean",
+            "description": "Whether the access code is enabled",
+            "example": true
+          },
+          "amountUsed": {
+            "type": "number",
+            "description": "How many times the access code has been used",
+            "example": 0
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the access code was created"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the access code was last updated"
+          }
+        }
+      },
+      "TransactionResponse": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string",
+            "description": "The ID of the transaction",
+            "example": "64f1a2b3c4d5e6f7a8b9c0d1"
+          },
+          "estateId": {
+            "type": "string",
+            "description": "The ID of the estate this transaction belongs to",
+            "example": "64f1a2b3c4d5e6f7a8b9c0d2"
+          },
+          "userId": {
+            "type": "string",
+            "description": "The ID of the user who made this transaction",
+            "example": "64f1a2b3c4d5e6f7a8b9c0d3"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "due_payment",
+              "access_code",
+              "other"
+            ],
+            "description": "The type of transaction",
+            "example": "due_payment"
+          },
+          "amount": {
+            "type": "number",
+            "description": "The transaction amount",
+            "example": 5000
+          },
+          "description": {
+            "type": "string",
+            "description": "A brief description of the transaction",
+            "example": "Monthly estate due payment"
+          },
+          "tx_ref": {
+            "type": "string",
+            "description": "Unique transaction reference from the payment provider",
+            "example": "TXN-20240115-ABC123"
+          },
+          "duration": {
+            "type": "number",
+            "description": "Number of billing periods covered by this payment",
+            "example": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "success",
+              "failed"
+            ],
+            "description": "Current status of the transaction",
+            "example": "pending"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the transaction was created"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the transaction was last updated"
+          }
+        }
+      },
+      "CreatePaymentInput": {
+        "type": "object",
+        "required": [
+          "amount",
+          "duration",
+          "type"
+        ],
+        "properties": {
+          "amount": {
+            "type": "number",
+            "description": "Amount to be paid",
+            "example": 5000
+          },
+          "duration": {
+            "type": "number",
+            "description": "How often the payment is charged",
+            "example": 1
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "estate_payments",
+              "utility",
+              "project",
+              "other"
+            ],
+            "description": "Type of payment",
+            "example": "estate_payments"
+          }
+        }
+      },
+      "PaymentResponse": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string",
+            "description": "The ID of the payment",
+            "example": "64f1a2b3c4d5e6f7a8b9c0d1"
+          },
+          "amount": {
+            "type": "number",
+            "description": "Amount to be paid",
+            "example": 5000
+          },
+          "duration": {
+            "type": "number",
+            "description": "How often the payment is charged",
+            "example": 1
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "estate_payments",
+              "utility",
+              "project",
+              "other"
+            ],
+            "description": "Type of payment",
+            "example": "estate_payments"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the payment was created"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the payment was last updated"
+          }
+        }
+      },
+      "CreateSubscriptionInput": {
+        "type": "object",
+        "required": [
+          "planId",
+          "startDate",
+          "endDate"
+        ],
+        "properties": {
+          "planId": {
+            "type": "string",
+            "description": "The ID of the plan to subscribe to",
+            "example": "64f1a2b3c4d5e6f7a8b9c0d1"
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the subscription starts",
+            "example": "2024-01-15T00:00:00.000Z"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the subscription ends",
+            "example": "2025-01-15T00:00:00.000Z"
+          }
+        }
+      },
+      "RenewSubscriptionInput": {
+        "type": "object",
+        "required": [
+          "endDate"
+        ],
+        "properties": {
+          "endDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "New end date for the renewed subscription (must be in the future)",
+            "example": "2026-01-15T00:00:00.000Z"
+          }
+        }
+      },
+      "SubscriptionResponse": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string",
+            "description": "The ID of the subscription",
+            "example": "64f1a2b3c4d5e6f7a8b9c0d1"
+          },
+          "estateId": {
+            "type": "string",
+            "description": "The ID of the estate this subscription belongs to",
+            "example": "64f1a2b3c4d5e6f7a8b9c0d2"
+          },
+          "userId": {
+            "type": "string",
+            "description": "The ID of the user who created this subscription",
+            "example": "64f1a2b3c4d5e6f7a8b9c0d3"
+          },
+          "planId": {
+            "type": "string",
+            "description": "The ID of the subscribed plan",
+            "example": "64f1a2b3c4d5e6f7a8b9c0d4"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "paused",
+              "cancelled",
+              "expired"
+            ],
+            "description": "Current status of the subscription",
+            "example": "active"
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the subscription started",
+            "example": "2024-01-15T00:00:00.000Z"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the subscription ends",
+            "example": "2025-01-15T00:00:00.000Z"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the subscription record was created"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the subscription record was last updated"
+          }
+        }
+      }
+    },
+    "parameters": {
+      "PageParam": {
+        "name": "page",
+        "in": "query",
+        "schema": {
+          "type": "integer",
+          "default": 1,
+          "minimum": 1
+        },
+        "required": false,
+        "description": "Page number"
+      },
+      "LimitParam": {
+        "name": "limit",
+        "in": "query",
+        "schema": {
+          "type": "integer",
+          "default": 10,
+          "minimum": 1,
+          "maximum": 100
+        },
+        "required": false,
+        "description": "Number of items per page"
+      },
+      "SearchParam": {
+        "name": "search",
+        "in": "query",
+        "schema": {
+          "type": "string"
+        },
+        "required": false,
+        "description": "Search keyword"
+      },
+      "SortParam": {
+        "name": "sort",
+        "in": "query",
+        "schema": {
+          "type": "string",
+          "example": "-createdAt"
+        },
+        "required": false,
+        "description": "Sort order, e.g. createdAt or -createdAt"
+      },
+      "IdParam": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/ObjectId"
+        },
+        "description": "Resource ID"
+      }
+    }
+  },
+  "paths": {
+    "/users/profile": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Get authenticated user's profile",
+        "description": "Returns the full (non-sensitive) user document for the currently authenticated user.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Profile retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Profile retrieved successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "_id": {
+                          "type": "string",
+                          "example": "507f1f77bcf86cd799439011"
+                        },
+                        "firstName": {
+                          "type": "string",
+                          "example": "John"
+                        },
+                        "lastName": {
+                          "type": "string",
+                          "example": "Doe"
+                        },
+                        "email": {
+                          "type": "string",
+                          "format": "email",
+                          "example": "john.doe@example.com"
+                        },
+                        "phoneNumber": {
+                          "type": "string",
+                          "nullable": true,
+                          "example": "+2348012345678"
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "admin",
+                            "customer",
+                            "user",
+                            "auditor"
+                          ],
+                          "example": "customer"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "pending_verification",
+                            "active",
+                            "inactive",
+                            "banned"
+                          ],
+                          "example": "active"
+                        },
+                        "emailVerified": {
+                          "type": "boolean",
+                          "example": true
+                        },
+                        "authProvider": {
+                          "type": "string",
+                          "enum": [
+                            "local",
+                            "google"
+                          ],
+                          "example": "local"
+                        },
+                        "hasPassword": {
+                          "type": "boolean",
+                          "description": "True if the user has set a login password."
+                        },
+                        "lastLoginAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "nullable": true
+                        },
+                        "lastActiveAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "nullable": true
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "message": "Profile retrieved successfully",
+                  "data": {
+                    "_id": "507f1f77bcf86cd799439011",
+                    "firstName": "John",
+                    "lastName": "Doe",
+                    "email": "john.doe@example.com",
+                    "phoneNumber": "+2348012345678",
+                    "role": "customer",
+                    "status": "active",
+                    "emailVerified": true,
+                    "authProvider": "local",
+                    "hasPassword": true,
+                    "lastLoginAt": "2026-01-22T10:30:00.000Z",
+                    "lastActiveAt": "2026-01-22T11:05:00.000Z",
+                    "createdAt": "2026-01-01T12:00:00.000Z",
+                    "updatedAt": "2026-01-01T12:00:00.000Z"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Invalid or missing token"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Delete authenticated user's account",
+        "description": "Permanently deletes the authenticated user's account and all associated data.\n**Warning:** This action is irreversible. All user data will be permanently removed.\n\n**What gets deleted:**\n- User account and profile\n- Associated business profiles\n- User's bookings and transactions\n- Audit logs related to the user\n",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Account deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Account deleted successfully"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Invalid or missing token"
+          },
+          "404": {
+            "description": "User not found"
+          }
+        }
+      }
+    },
+    "/users": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Get all users (Admin only)",
+        "description": "Retrieves a paginated list of all users in the system.\nThis endpoint is restricted to admin users only.\nSupports pagination with page and limit query parameters.\n",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "description": "Page number for pagination",
+            "example": 1
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10
+            },
+            "description": "Number of users per page",
+            "example": 10
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Users retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Users retrieved successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "users": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "_id": {
+                                "type": "string"
+                              },
+                              "firstName": {
+                                "type": "string"
+                              },
+                              "lastName": {
+                                "type": "string"
+                              },
+                              "email": {
+                                "type": "string"
+                              },
+                              "role": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "string"
+                              },
+                              "emailVerified": {
+                                "type": "boolean"
+                              },
+                              "createdAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            }
+                          }
+                        },
+                        "pagination": {
+                          "type": "object",
+                          "properties": {
+                            "currentPage": {
+                              "type": "integer",
+                              "example": 1
+                            },
+                            "totalPages": {
+                              "type": "integer",
+                              "example": 5
+                            },
+                            "totalUsers": {
+                              "type": "integer",
+                              "example": 50
+                            },
+                            "limit": {
+                              "type": "integer",
+                              "example": 10
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Invalid or missing token"
+          },
+          "403": {
+            "description": "Forbidden - User is not an admin"
+          }
+        }
+      }
+    },
+    "/users/{id}": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Get user by ID (Admin only)",
+        "description": "Retrieves detailed information about a specific user by their ID.\nThis endpoint is restricted to admin users only.\nReturns full user profile including all fields.\n",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "User ID (MongoDB ObjectId)",
+            "example": "507f1f77bcf86cd799439011"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "User retrieved successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "_id": {
+                          "type": "string"
+                        },
+                        "firstName": {
+                          "type": "string"
+                        },
+                        "lastName": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string"
+                        },
+                        "role": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "emailVerified": {
+                          "type": "boolean"
+                        },
+                        "authProvider": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "hasPassword": {
+                          "type": "boolean",
+                          "description": "True if the user has set a login password."
+                        },
+                        "lastLoginAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "nullable": true
+                        },
+                        "lastActiveAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "nullable": true
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Invalid or missing token"
+          },
+          "403": {
+            "description": "Forbidden - User is not an admin"
+          },
+          "404": {
+            "description": "User not found"
+          }
+        }
+      }
+    },
+    "/users/profile/update": {
+      "patch": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Update authenticated user's profile",
+        "description": "Allows the authenticated user to update their own profile information.\nAll fields are optional - only provided fields will be updated.\nAvatar must be a valid UploadedFile ObjectId if provided.\n",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserInput"
+              },
+              "example": {
+                "firstName": "John",
+                "lastName": "Doe",
+                "phoneNumber": "+2348012345678"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Profile updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Profile updated successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "description": "Updated user profile"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error - Invalid input data"
+          },
+          "401": {
+            "description": "Unauthorized - Invalid or missing token"
+          }
+        }
+      }
+    },
+    "/transactions": {
+      "get": {
+        "tags": [
+          "Transactions"
+        ],
+        "summary": "List transactions (paginated)",
+        "description": "Returns transactions using simple page/limit pagination. Requires authentication.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "description": "Page number"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10
+            },
+            "description": "Items per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transactions retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Transactions retrieved successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/TransactionResponse"
+                          }
+                        },
+                        "total": {
+                          "type": "integer",
+                          "example": 42
+                        },
+                        "page": {
+                          "type": "integer",
+                          "example": 1
+                        },
+                        "limit": {
+                          "type": "integer",
+                          "example": 10
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/transactions/resident": {
+      "get": {
+        "tags": [
+          "Transactions"
+        ],
+        "summary": "List transactions by estate (paginated) - Resident only",
+        "description": "Returns transactions for a specific estate using simple page/limit pagination. Requires authentication.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "description": "Page number"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10
+            },
+            "description": "Items per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transactions retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Transactions retrieved successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/TransactionResponse"
+                          }
+                        },
+                        "total": {
+                          "type": "integer",
+                          "example": 42
+                        },
+                        "page": {
+                          "type": "integer",
+                          "example": 1
+                        },
+                        "limit": {
+                          "type": "integer",
+                          "example": 10
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/transactions/estate": {
+      "get": {
+        "tags": [
+          "Transactions"
+        ],
+        "summary": "List transactions by estate (paginated) - Estate Admins only",
+        "description": "Returns transactions for a specific estate using simple page/limit pagination. Requires authentication.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "description": "Page number"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10
+            },
+            "description": "Items per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transactions retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Transactions retrieved successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/TransactionResponse"
+                          }
+                        },
+                        "total": {
+                          "type": "integer",
+                          "example": 42
+                        },
+                        "page": {
+                          "type": "integer",
+                          "example": 1
+                        },
+                        "limit": {
+                          "type": "integer",
+                          "example": 10
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/transactions/{id}": {
+      "get": {
+        "tags": [
+          "Transactions"
+        ],
+        "summary": "Get a transactions by ID",
+        "description": "Retrieves a single transactions document. Requires authentication.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Transactions ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transactions retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Transactions retrieved successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/TransactionResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Transactions not found"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Transactions"
+        ],
+        "summary": "Delete a transactions (Admin only)",
+        "description": "Deletes a transactions by ID. Requires authentication.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Transactions ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transactions deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Transactions deleted successfully"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Transactions not found"
+          }
+        }
+      }
+    },
+    "/subscriptions": {
+      "post": {
+        "tags": [
+          "Subscriptions"
+        ],
+        "summary": "Create a subscription (Estate admins only)",
+        "description": "Subscribes an estate to a plan.\nestateId and userId are taken from the authenticated user's JWT.\nRequires authentication.\n",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSubscriptionInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Subscription created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Subscription created successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/SubscriptionResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "409": {
+            "description": "Subscription already exists"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Subscriptions"
+        ],
+        "summary": "List all subscriptions (paginated) - Super admins only",
+        "description": "Returns all subscriptions across all estates. Requires authentication.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "description": "Page number"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10
+            },
+            "description": "Items per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Subscriptions retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Subscriptions retrieved successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/SubscriptionResponse"
+                          }
+                        },
+                        "total": {
+                          "type": "integer",
+                          "example": 42
+                        },
+                        "page": {
+                          "type": "integer",
+                          "example": 1
+                        },
+                        "limit": {
+                          "type": "integer",
+                          "example": 10
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/subscriptions/estate": {
+      "get": {
+        "tags": [
+          "Subscriptions"
+        ],
+        "summary": "List subscriptions for the authenticated estate (paginated)",
+        "description": "Returns subscriptions scoped to the estate from the JWT.\nRequires authentication.\n",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "description": "Page number"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10
+            },
+            "description": "Items per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Subscriptions retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Subscriptions retrieved successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/SubscriptionResponse"
+                          }
+                        },
+                        "total": {
+                          "type": "integer",
+                          "example": 42
+                        },
+                        "page": {
+                          "type": "integer",
+                          "example": 1
+                        },
+                        "limit": {
+                          "type": "integer",
+                          "example": 10
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/subscriptions/{id}": {
+      "get": {
+        "tags": [
+          "Subscriptions"
+        ],
+        "summary": "Get a subscription by ID",
+        "description": "Retrieves a single subscription by its ID. Requires authentication.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Subscription ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Subscription retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Subscription retrieved successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/SubscriptionResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Subscription not found"
+          }
+        }
+      }
+    },
+    "/subscriptions/{id}/cancel": {
+      "patch": {
+        "tags": [
+          "Subscriptions"
+        ],
+        "summary": "Cancel a subscription",
+        "description": "Cancels an active subscription immediately.\nSets endDate to now and status to cancelled.\nRequires authentication.\n",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Subscription ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Subscription cancelled successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Subscription cancelled successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/SubscriptionResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Subscription not found"
+          },
+          "409": {
+            "description": "Subscription is already cancelled"
+          }
+        }
+      }
+    },
+    "/subscriptions/{id}/pause": {
+      "patch": {
+        "tags": [
+          "Subscriptions"
+        ],
+        "summary": "Pause a subscription",
+        "description": "Pauses an active subscription.\nOnly active subscriptions can be paused.\nRequires authentication.\n",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Subscription ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Subscription paused successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Subscription paused successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/SubscriptionResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Subscription not found"
+          },
+          "409": {
+            "description": "Subscription is not active"
+          }
+        }
+      }
+    },
+    "/subscriptions/{id}/resume": {
+      "patch": {
+        "tags": [
+          "Subscriptions"
+        ],
+        "summary": "Resume a paused subscription",
+        "description": "Resumes a paused subscription back to active.\nOnly paused subscriptions can be resumed.\nRequires authentication.\n",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Subscription ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Subscription resumed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Subscription resumed successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/SubscriptionResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Subscription not found"
+          },
+          "409": {
+            "description": "Subscription is not paused"
+          }
+        }
+      }
+    },
+    "/subscriptions/{id}/renew": {
+      "patch": {
+        "tags": [
+          "Subscriptions"
+        ],
+        "summary": "Renew a subscription",
+        "description": "Renews an expired or cancelled subscription with a new end date.\nCannot renew an already active subscription.\nRequires authentication.\n",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Subscription ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenewSubscriptionInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Subscription renewed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Subscription renewed successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/SubscriptionResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "End date must be in the future"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Subscription not found"
+          },
+          "409": {
+            "description": "Subscription is already active"
+          }
+        }
+      }
+    },
+    "/securities": {
+      "post": {
+        "tags": [
+          "Securities"
+        ],
+        "summary": "Create a securities (Admins only)",
+        "description": "Creates a new securities that estates can attach to their offerings.\nRequires authentication.\n",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSecurityInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Securities created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Securities created successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/SecurityResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "409": {
+            "description": "Securities already exists"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Securities"
+        ],
+        "summary": "List securities (paginated)",
+        "description": "Returns securities using simple page/limit pagination. Requires authentication.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "description": "Page number"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10
+            },
+            "description": "Items per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Securities retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Securities retrieved successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/SecurityResponse"
+                          }
+                        },
+                        "total": {
+                          "type": "integer",
+                          "example": 42
+                        },
+                        "page": {
+                          "type": "integer",
+                          "example": 1
+                        },
+                        "limit": {
+                          "type": "integer",
+                          "example": 10
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/securities/login": {
+      "post": {
+        "tags": [
+          "Securities"
+        ],
+        "summary": "Login security",
+        "description": "Authenticates a Security and returns access + refresh tokens.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SecurityLoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Login successful"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "security": {
+                          "type": "object",
+                          "properties": {
+                            "_id": {
+                              "type": "string",
+                              "example": "67f2c1f5b1a2c3d4e5f67890"
+                            },
+                            "securityCode": {
+                              "type": "string",
+                              "example": "239097"
+                            },
+                            "role": {
+                              "type": "string",
+                              "example": "security"
+                            },
+                            "estateId": {
+                              "type": "string",
+                              "example": "67f2c1f5b1a2c3d4e5f67890"
+                            }
+                          }
+                        },
+                        "token": {
+                          "type": "string",
+                          "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.access.token"
+                        },
+                        "refreshToken": {
+                          "type": "string",
+                          "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh.token"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error or bad request"
+          },
+          "401": {
+            "description": "Invalid credentials"
+          }
+        }
+      }
+    },
+    "/securities/estate": {
+      "get": {
+        "tags": [
+          "Securities"
+        ],
+        "summary": "List securities by estate (paginated) - Estate Admins only",
+        "description": "Returns securities for a specific estate using simple page/limit pagination. Requires authentication.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "description": "Page number"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10
+            },
+            "description": "Items per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Securities retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Securities retrieved successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/SecurityResponse"
+                          }
+                        },
+                        "total": {
+                          "type": "integer",
+                          "example": 42
+                        },
+                        "page": {
+                          "type": "integer",
+                          "example": 1
+                        },
+                        "limit": {
+                          "type": "integer",
+                          "example": 10
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/securities/profile": {
+      "get": {
+        "tags": [
+          "Securities"
+        ],
+        "summary": "Get authenticated security personnel's profile",
+        "description": "Returns the security document linked to the currently authenticated security personnel. Requires authentication.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Profile retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Profile retrieved successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/SecurityResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - User is not security personnel"
+          },
+          "404": {
+            "description": "Security not found"
+          }
+        }
+      }
+    },
+    "/securities/{id}": {
+      "get": {
+        "tags": [
+          "Securities"
+        ],
+        "summary": "Get a securities by ID",
+        "description": "Retrieves a single securities document. Requires authentication.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Securities ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Securities retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Securities retrieved successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/SecurityResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Securities not found"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Securities"
+        ],
+        "summary": "Update a securities (Admin only)",
+        "description": "Updates fields on an existing securities. Requires authentication.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Securities ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSecurityInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Securities updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Securities updated successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/SecurityResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Securities not found"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Securities"
+        ],
+        "summary": "Delete a securities (Admin only)",
+        "description": "Deletes a securities by ID. Requires authentication.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Securities ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Securities deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Securities deleted successfully"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Securities not found"
+          }
+        }
+      }
+    },
+    "/residents": {
+      "post": {
+        "tags": [
+          "Residents"
+        ],
+        "summary": "Create a residents (Admins only)",
+        "description": "Creates a new residents that estates can attach to their offerings.\nRequires authentication.\n",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateResidentInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Residents created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Residents created successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ResidentResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "409": {
+            "description": "Residents already exists"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Residents"
+        ],
+        "summary": "List residents (paginated)",
+        "description": "Returns residents using simple page/limit pagination. Requires authentication.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "description": "Page number"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10
+            },
+            "description": "Items per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Residents retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Residents retrieved successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/ResidentResponse"
+                          }
+                        },
+                        "total": {
+                          "type": "integer",
+                          "example": 42
+                        },
+                        "page": {
+                          "type": "integer",
+                          "example": 1
+                        },
+                        "limit": {
+                          "type": "integer",
+                          "example": 10
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/residents/estate": {
+      "get": {
+        "tags": [
+          "Residents"
+        ],
+        "summary": "List residents by estate (paginated) - Estate Admins only",
+        "description": "Returns residents for a specific estate using simple page/limit pagination. Requires authentication.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "description": "Page number"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10
+            },
+            "description": "Items per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Residents retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Residents retrieved successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/ResidentResponse"
+                          }
+                        },
+                        "total": {
+                          "type": "integer",
+                          "example": 42
+                        },
+                        "page": {
+                          "type": "integer",
+                          "example": 1
+                        },
+                        "limit": {
+                          "type": "integer",
+                          "example": 10
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/residents/profile": {
+      "get": {
+        "tags": [
+          "Residents"
+        ],
+        "summary": "Get authenticated resident's profile",
+        "description": "Returns the resident document linked to the currently authenticated resident. Requires authentication.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Profile retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Profile retrieved successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ResidentResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - User is not a resident"
+          },
+          "404": {
+            "description": "Resident not found"
+          }
+        }
+      }
+    },
+    "/residents/{id}": {
+      "get": {
+        "tags": [
+          "Residents"
+        ],
+        "summary": "Get a residents by ID",
+        "description": "Retrieves a single residents document. Requires authentication.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Residents ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Residents retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Residents retrieved successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ResidentResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Residents not found"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Residents"
+        ],
+        "summary": "Update a residents (Admin only)",
+        "description": "Updates fields on an existing residents. Requires authentication.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Residents ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateResidentInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Residents updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Residents updated successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ResidentResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Residents not found"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Residents"
+        ],
+        "summary": "Delete a residents (Admin only)",
+        "description": "Deletes a residents by ID. Requires authentication.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Residents ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Residents deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Residents deleted successfully"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Residents not found"
+          }
+        }
+      }
+    },
+    "/plans": {
+      "post": {
+        "tags": [
+          "Plans"
+        ],
+        "summary": "Create a plans (Admin only)",
+        "description": "Creates a new plans that estates can attach to their offerings.\nRequires authentication.\n",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePlanInput"
+              },
+              "example": {
+                "type": "flat_rate",
+                "price": 50,
+                "description": "A simple flat rate plan",
+                "features": [
+                  "Feature 1",
+                  "Feature 2"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Plan created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Plan created successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PlanResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "409": {
+            "description": "Plan already exists"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Plans"
+        ],
+        "summary": "List plans (paginated)",
+        "description": "Returns plans using simple page/limit pagination. Requires authentication.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "description": "Page number"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10
+            },
+            "description": "Items per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Plans retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Plans retrieved successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/PlanResponse"
+                          }
+                        },
+                        "total": {
+                          "type": "integer",
+                          "example": 42
+                        },
+                        "page": {
+                          "type": "integer",
+                          "example": 1
+                        },
+                        "limit": {
+                          "type": "integer",
+                          "example": 10
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/plans/{id}": {
+      "get": {
+        "tags": [
+          "Plans"
+        ],
+        "summary": "Get a plans by ID",
+        "description": "Retrieves a single plans document. Requires authentication.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Plan ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Plan retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Plan retrieved successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PlanResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Plan not found"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Plans"
+        ],
+        "summary": "Update a plans (Admin only)",
+        "description": "Updates fields on an existing plans. Requires authentication.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Plan ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePlanInput"
+              },
+              "example": {
+                "type": "Premium",
+                "price": 75,
+                "description": "A premium plan with additional features",
+                "features": [
+                  "Feature 1",
+                  "Feature 2",
+                  "Feature 3"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Plan updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Plan updated successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PlanResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Plan not found"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Plans"
+        ],
+        "summary": "Delete a plans (Admin only)",
+        "description": "Deletes a plans by ID. Requires authentication.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Plan ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Plan deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Plan deleted successfully"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Plan not found"
+          }
+        }
+      }
+    },
+    "/payments/initiate": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Initiate a payments",
+        "description": "Initiate a new payments.\nRequires authentication.\n",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePaymentInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Payments created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Payments created successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PaymentResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "409": {
+            "description": "Payments already exists"
+          }
+        }
+      }
+    },
+    "/payments/verify/{reference}": {
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Verify payments",
+        "description": "Returns payments",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "reference",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "reference ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payments retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Payments retrieved successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PaymentResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/estates": {
+      "post": {
+        "tags": [
+          "Estates"
+        ],
+        "summary": "Create a estates (Super Admins only)",
+        "description": "Creates a new estates that estates can attach to their offerings.\nRequires authentication.\n",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEstateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Estates created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Estates created successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/EstateResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "409": {
+            "description": "Estates already exists"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Estates"
+        ],
+        "summary": "List estates (paginated) - Super Admins only",
+        "description": "Returns estates using simple page/limit pagination. Requires authentication.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "description": "Page number"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10
+            },
+            "description": "Items per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Estates retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Estates retrieved successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/EstateResponse"
+                          }
+                        },
+                        "total": {
+                          "type": "integer",
+                          "example": 42
+                        },
+                        "page": {
+                          "type": "integer",
+                          "example": 1
+                        },
+                        "limit": {
+                          "type": "integer",
+                          "example": 10
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/estates/profile": {
+      "get": {
+        "tags": [
+          "Estates"
+        ],
+        "summary": "Get authenticated estate admin's profile",
+        "description": "Returns the estate document linked to the currently authenticated estate admin. Requires authentication.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Profile retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Profile retrieved successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/EstateResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - User is not an estate admin"
+          },
+          "404": {
+            "description": "Estate not found"
+          }
+        }
+      }
+    },
+    "/estates/{id}": {
+      "get": {
+        "tags": [
+          "Estates"
+        ],
+        "summary": "Get a estates by ID",
+        "description": "Retrieves a single estates document. Requires authentication.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Estates ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Estates retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Estates retrieved successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/EstateResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Estates not found"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Estates"
+        ],
+        "summary": "Update a estates (Super Admin only)",
+        "description": "Updates fields on an existing estates. Requires authentication.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Estates ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateEstatesInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Estates updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Estates updated successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/EstateResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Estates not found"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Estates"
+        ],
+        "summary": "Delete a estates (Super Admin only)",
+        "description": "Deletes a estates by ID. Requires authentication.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Estates ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Estates deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Estates deleted successfully"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Estates not found"
+          }
+        }
+      }
+    },
+    "/dues": {
+      "post": {
+        "tags": [
+          "Dues"
+        ],
+        "summary": "Create a dues (Estate admins only)",
+        "description": "Creates a new dues that estates can attach to their offerings.\nRequires authentication.\n",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDueInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Dues created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Dues created successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/DueResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "409": {
+            "description": "Dues already exists"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Dues"
+        ],
+        "summary": "List dues (paginated) - Admins only",
+        "description": "Returns dues using simple page/limit pagination. Requires authentication.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "description": "Page number"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10
+            },
+            "description": "Items per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dues retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Dues retrieved successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/DueResponse"
+                          }
+                        },
+                        "total": {
+                          "type": "integer",
+                          "example": 42
+                        },
+                        "page": {
+                          "type": "integer",
+                          "example": 1
+                        },
+                        "limit": {
+                          "type": "integer",
+                          "example": 10
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/dues/estate": {
+      "get": {
+        "tags": [
+          "Dues"
+        ],
+        "summary": "List dues by estate (paginated) - Estate Admins only",
+        "description": "Returns dues for a specific estate using simple page/limit pagination. Requires authentication.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "description": "Page number"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10
+            },
+            "description": "Items per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dues retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Dues retrieved successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/DueResponse"
+                          }
+                        },
+                        "total": {
+                          "type": "integer",
+                          "example": 42
+                        },
+                        "page": {
+                          "type": "integer",
+                          "example": 1
+                        },
+                        "limit": {
+                          "type": "integer",
+                          "example": 10
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/dues/{id}": {
+      "get": {
+        "tags": [
+          "Dues"
+        ],
+        "summary": "Get a dues by ID",
+        "description": "Retrieves a single dues document. Requires authentication.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Dues ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dues retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Dues retrieved successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/DueResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Dues not found"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Dues"
+        ],
+        "summary": "Update a dues (Admin only)",
+        "description": "Updates fields on an existing dues. Requires authentication.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Dues ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDueInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Dues updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Dues updated successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/DueResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Dues not found"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Dues"
+        ],
+        "summary": "Delete a dues (Admin only)",
+        "description": "Deletes a dues by ID. Requires authentication.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Dues ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dues deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Dues deleted successfully"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Dues not found"
+          }
+        }
+      }
+    },
+    "/auth/register-estate": {
+      "post": {
+        "tags": [
+          "Auths"
+        ],
+        "summary": "Register a new estate admin account",
+        "description": "Creates a new account and sends email verification instructions.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterEstateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Registration successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterEstateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error or bad request"
+          },
+          "409": {
+            "description": "Email already exists"
+          }
+        }
+      }
+    },
+    "/auth/register-resident": {
+      "post": {
+        "tags": [
+          "Auths"
+        ],
+        "summary": "Register a new resident account",
+        "description": "Creates a new account and sends email verification instructions.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterResidentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Registration successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterResidentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error or bad request"
+          },
+          "409": {
+            "description": "Email already exists"
+          }
+        }
+      }
+    },
+    "/auth/verify-email/{token}": {
+      "get": {
+        "tags": [
+          "Auths"
+        ],
+        "summary": "Verify email address",
+        "description": "Verifies the user's email using a one-time token sent to their inbox.",
+        "security": [],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The email verification token sent to the user's email."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Email verified successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid or expired token"
+          }
+        }
+      }
+    },
+    "/auth/resend-verification-email": {
+      "post": {
+        "tags": [
+          "Auths"
+        ],
+        "summary": "Resend verification email",
+        "description": "Resend the account verification email if the user is not yet verified.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResendVerificationEmailRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Verification email sent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error or bad request"
+          },
+          "404": {
+            "description": "User not found"
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": [
+          "Auths"
+        ],
+        "summary": "Login user",
+        "description": "Authenticates a user and returns access + refresh tokens.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Login successful"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AuthResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error or bad request"
+          },
+          "401": {
+            "description": "Invalid credentials"
+          }
+        }
+      }
+    },
+    "/auth/change-password": {
+      "patch": {
+        "tags": [
+          "Auths"
+        ],
+        "summary": "Change password (authenticated)",
+        "description": "Changes the authenticated user's password. Requires the current password.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "oldPassword",
+                  "newPassword"
+                ],
+                "properties": {
+                  "oldPassword": {
+                    "type": "string",
+                    "example": "OldPassword123"
+                  },
+                  "newPassword": {
+                    "type": "string",
+                    "minLength": 8,
+                    "example": "NewPassword123"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password changed successfully"
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Current password is incorrect"
+          }
+        }
+      }
+    },
+    "/auth/refresh-token": {
+      "post": {
+        "tags": [
+          "Auths"
+        ],
+        "summary": "Refresh access token",
+        "description": "Exchanges a valid refresh token for a new access token (and optionally a new refresh token depending on your implementation).",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshTokenRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Token refreshed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshTokenResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error or bad request"
+          },
+          "401": {
+            "description": "Invalid or expired refresh token"
+          }
+        }
+      }
+    },
+    "/auth/forgot-password": {
+      "post": {
+        "tags": [
+          "Auths"
+        ],
+        "summary": "Make a request for forgot password",
+        "description": "Initiates the password reset process for a user.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForgotPasswordRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password reset email sent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error or bad request"
+          },
+          "401": {
+            "description": "Invalid or expired refresh token"
+          }
+        }
+      }
+    },
+    "/auth/reset-password": {
+      "post": {
+        "tags": [
+          "Auths"
+        ],
+        "summary": "Check your email for a code and reset password",
+        "description": "Completes the password reset process by validating the reset token and setting a new password.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password reset successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error or bad request"
+          },
+          "401": {
+            "description": "Invalid or expired refresh token"
+          }
+        }
+      }
+    },
+    "/auth/resend-forgot-password-email": {
+      "post": {
+        "tags": [
+          "Auths"
+        ],
+        "summary": "Resend forgot password email",
+        "description": "Resend the forgot password email if the user has requested a password reset.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResendForgotPasswordEmailRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Forgot password email sent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericSuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error or bad request"
+          },
+          "404": {
+            "description": "User not found"
+          }
+        }
+      }
+    },
+    "/access-codes": {
+      "post": {
+        "tags": [
+          "AccessCodes"
+        ],
+        "summary": "Create a access codes (Residents only)",
+        "description": "Creates a new access-codes that estates can attach to their offerings.\nRequires authentication.\n",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAccessCodesInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Access Codes created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Access Codes created successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AccessCodesResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "409": {
+            "description": "Access Codes already exists"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "AccessCodes"
+        ],
+        "summary": "List access codes (paginated)",
+        "description": "Returns access codes using simple page/limit pagination. Requires authentication.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "description": "Page number"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10
+            },
+            "description": "Items per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Access Codes retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Access Codes retrieved successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/AccessCodesResponse"
+                          }
+                        },
+                        "total": {
+                          "type": "integer",
+                          "example": 42
+                        },
+                        "page": {
+                          "type": "integer",
+                          "example": 1
+                        },
+                        "limit": {
+                          "type": "integer",
+                          "example": 10
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/access-codes/validate": {
+      "post": {
+        "tags": [
+          "AccessCodes"
+        ],
+        "summary": "Validate an access code (Security only)",
+        "description": "Validates an access code to grant or deny estate entry.\nRequires authentication.\n",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ValidateAccessCodesInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Access code validated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Access code validated successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AccessCodesResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Access code not found"
+          }
+        }
+      }
+    },
+    "/access-codes/resident": {
+      "get": {
+        "tags": [
+          "AccessCodes"
+        ],
+        "summary": "List access codes by resident (paginated) - Resident Admins only",
+        "description": "Returns access-codes for a specific estate using simple page/limit pagination. Requires authentication.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "description": "Page number"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10
+            },
+            "description": "Items per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Access Codes retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Access Codes retrieved successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/AccessCodesResponse"
+                          }
+                        },
+                        "total": {
+                          "type": "integer",
+                          "example": 42
+                        },
+                        "page": {
+                          "type": "integer",
+                          "example": 1
+                        },
+                        "limit": {
+                          "type": "integer",
+                          "example": 10
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/access-codes/estate": {
+      "get": {
+        "tags": [
+          "AccessCodes"
+        ],
+        "summary": "List access codes by estate (paginated) - Estate Admins only",
+        "description": "Returns access-codes for a specific estate using simple page/limit pagination. Requires authentication.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "description": "Page number"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10
+            },
+            "description": "Items per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Access Codes retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Access Codes retrieved successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/AccessCodesResponse"
+                          }
+                        },
+                        "total": {
+                          "type": "integer",
+                          "example": 42
+                        },
+                        "page": {
+                          "type": "integer",
+                          "example": 1
+                        },
+                        "limit": {
+                          "type": "integer",
+                          "example": 10
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/access-codes/{id}": {
+      "get": {
+        "tags": [
+          "AccessCodes"
+        ],
+        "summary": "Get a access-codes by ID",
+        "description": "Retrieves a single access-codes document. Requires authentication.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Access Codes ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Access Codes retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Access Codes retrieved successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AccessCodesResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Access Codes not found"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "AccessCodes"
+        ],
+        "summary": "Update a access-codes (Admin only)",
+        "description": "Updates fields on an existing access-codes. Requires authentication.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Access Codes ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAccessCodesInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Access Codes updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Access Codes updated successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AccessCodesResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Access Codes not found"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "AccessCodes"
+        ],
+        "summary": "Delete a access-codes (Admin only)",
+        "description": "Deletes a access-codes by ID. Requires authentication.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Access Codes ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Access Codes deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Access Codes deleted successfully"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Access Codes not found"
+          }
+        }
+      }
+    }
+  },
+  "tags": []
+}

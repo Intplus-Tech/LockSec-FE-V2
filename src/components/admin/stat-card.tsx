@@ -18,7 +18,7 @@ export function StatCard({
   return (
     <div
       className={cn(
-        "rounded-card bg-white px-5 py-6 text-center shadow-sm",
+        "rounded-card bg-white px-4 py-5 text-center shadow-sm sm:px-5 sm:py-6",
         className,
       )}
     >
@@ -29,7 +29,7 @@ export function StatCard({
         // that happens to be wrong is worse than an honest gap.
         <p className="text-lg font-medium text-faint">Unavailable</p>
       ) : (
-        <p className="break-words text-2xl font-extrabold text-heading lg:text-3xl">
+        <p className="break-words text-xl font-extrabold text-heading sm:text-2xl lg:text-3xl">
           {value}
         </p>
       )}

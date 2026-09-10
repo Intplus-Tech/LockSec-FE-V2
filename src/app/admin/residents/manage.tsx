@@ -187,7 +187,7 @@ export function ResidentManagement() {
       breadcrumb="Resident Management"
       estateId={estate.data?._id}
       actions={
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <div className="w-36">
             <label htmlFor="standing-filter" className="sr-only">
               Filter residents
@@ -213,8 +213,8 @@ export function ResidentManagement() {
             Add New Resident
           </Button>
 
-          <div className="ml-auto flex flex-wrap items-center gap-3">
-            <div className="w-full sm:w-64">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto sm:gap-3">
+            <div className="min-w-0 flex-1 sm:w-64 sm:flex-none">
               <label htmlFor="resident-search" className="sr-only">
                 Search residents
               </label>

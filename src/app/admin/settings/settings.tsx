@@ -58,25 +58,29 @@ export function SettingsScreen() {
       breadcrumb={`Settings / ${tab === "password" ? "Update Password" : "Dues"}`}
       estateId={estate.data?._id}
     >
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,18rem)_1fr]">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,18rem)_1fr] lg:gap-5">
         <nav
           aria-label="Settings sections"
           className="h-fit overflow-hidden rounded-card bg-white shadow-sm"
         >
-          <ul>
+          {/* A vertical list of two items wastes a whole screen on a phone,
+              so below `lg` it becomes a horizontal strip with the active
+              marker moving from the left edge to the bottom. */}
+          <ul className="flex lg:block">
             {(
               [
                 { id: "password", label: "Update Password" },
                 { id: "dues", label: "Dues" },
               ] as const
             ).map((item) => (
-              <li key={item.id}>
+              <li key={item.id} className="flex-1 lg:flex-none">
                 <button
                   type="button"
                   onClick={() => setTab(item.id)}
                   aria-current={tab === item.id ? "page" : undefined}
                   className={cn(
-                    "w-full border-l-2 px-6 py-4 text-left text-sm transition-colors",
+                    "w-full px-4 py-3.5 text-sm transition-colors",
+                    "border-b-2 lg:border-b-0 lg:border-l-2 lg:px-6 lg:py-4 lg:text-left",
                     tab === item.id
                       ? "border-brand-deep font-medium text-brand-deep"
                       : "border-transparent text-body hover:bg-canvas",
@@ -89,7 +93,7 @@ export function SettingsScreen() {
           </ul>
         </nav>
 
-        <div className="rounded-card bg-white p-5 shadow-sm sm:p-7">
+        <div className="rounded-card bg-white p-4 shadow-sm sm:p-5 lg:p-7">
           {tab === "password" ? (
             <UpdatePasswordPanel />
           ) : (
@@ -137,12 +141,21 @@ function UpdatePasswordPanel() {
     register,
     handleSubmit,
     reset,
+    setError,
     formState: { errors },
   } = useForm<PasswordFormInput>({
     resolver: zodResolver(passwordFormSchema),
     mode: "onBlur",
   });
 
+  /**
+   * Posts to PATCH /auth/change-password, which now exists.
+   *
+   * The previous version posted to /users/profile/update and then proved the
+   * change by attempting a sign-in, because that endpoint returned 200 without
+   * changing anything. With a real endpoint the proof is unnecessary — a 401
+   * means the old password was wrong, and anything else is a real error.
+   */
   const change = useMutation({
     mutationFn: (values: PasswordFormInput) =>
       changePassword({
@@ -150,17 +163,31 @@ function UpdatePasswordPanel() {
         newPassword: values.newPassword,
       }),
     onSuccess: () => reset(),
+    onError: (error) => {
+      // The API returns 401 specifically for a wrong current password, so put
+      // the message on that field rather than in a banner.
+      if (error instanceof ApiError && error.status === 401) {
+        setError("oldPassword", {
+          type: "server",
+          message: "That isn't your current password.",
+        });
+        return;
+      }
+      if (error instanceof ApiError && error.fieldErrors) {
+        for (const [field, messages] of Object.entries(error.fieldErrors)) {
+          setError(field as keyof PasswordFormInput, {
+            type: "server",
+            message: messages[0],
+          });
+        }
+      }
+    },
   });
 
-  /**
-   * The endpoint this posts to has an undefined request schema in the spec,
-   * so it may not support passwords at all. If it comes back 400/404/501 the
-   * fallback below appears — sending a reset code by email, which definitely
-   * works.
-   */
-  const notSupported =
+  /** The endpoint is missing entirely — an older deployment of the API. */
+  const missing =
     change.error instanceof ApiError &&
-    [400, 404, 405, 501].includes(change.error.status);
+    [404, 405, 501].includes(change.error.status);
 
   const sendReset = useMutation({
     mutationFn: async () => {
@@ -173,6 +200,15 @@ function UpdatePasswordPanel() {
       return response.json();
     },
   });
+
+  const bannerError =
+    change.error && !missing
+      ? change.error instanceof ApiError
+        ? change.error.status === 401 || change.error.fieldErrors
+          ? null // already shown on a field
+          : change.error.detail
+        : (change.error as Error).message
+      : null;
 
   return (
     <div className="max-w-xl">
@@ -188,19 +224,11 @@ function UpdatePasswordPanel() {
             role="status"
             className="rounded-field bg-ok-tint px-3 py-2.5 text-sm text-ok"
           >
-            Password updated.
+            Password updated. Use your new password next time you sign in.
           </p>
         ) : null}
 
-        {change.error && !notSupported ? (
-          <FormError
-            message={
-              change.error instanceof ApiError
-                ? change.error.detail
-                : (change.error as Error).message
-            }
-          />
-        ) : null}
+        <FormError message={bannerError} />
 
         <Field label="Old Password" error={errors.oldPassword?.message}>
           <PasswordField
@@ -241,13 +269,18 @@ function UpdatePasswordPanel() {
         </Button>
       </form>
 
-      {/* Only appears if the server rejects the direct change. Gives the user
-          a route that works rather than a dead end. */}
-      {notSupported ? (
-        <div className="mt-6 rounded-card border border-hairline bg-canvas p-5">
-          <p className="text-sm text-body">
-            This server can&rsquo;t change a password directly yet. We can email
-            a six-digit code to{" "}
+      {/* Only if the server does not have the endpoint at all. */}
+      {missing ? (
+        <div
+          role="alert"
+          className="mt-6 rounded-card border border-warn/40 bg-warn-tint p-5"
+        >
+          <p className="text-sm font-medium text-heading">
+            Your password was not changed.
+          </p>
+          <p className="mt-2 text-sm text-body">
+            This server can&rsquo;t change a password directly. We can email a
+            six-digit code to{" "}
             <span className="font-medium text-heading">
               {estate.data?.email ?? "your address"}
             </span>{" "}
@@ -441,7 +474,88 @@ function DuesPanel({ estateId }: { estateId?: string }) {
               }
             />
           ) : (
-            <div className="mt-5 overflow-x-auto">
+            <>
+            {/* Cards on phones — the same reasoning as the main data table:
+                eight columns cannot be read at 375px, and a card shows every
+                field rather than hiding half of them. */}
+            <ul className="mt-5 space-y-3 lg:hidden">
+              {rows.map((due) => (
+                <li
+                  key={due._id}
+                  className="rounded-card border border-hairline p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="font-medium text-heading">
+                      {due.name || (
+                        <span className="italic text-faint">Unnamed bill</span>
+                      )}
+                    </p>
+                    <Toggle
+                      checked={due.isDueEnabled !== false}
+                      label={`${due.name || "Unnamed bill"} enabled`}
+                      disabled={toggle.isPending}
+                      onChange={(next) =>
+                        toggle.mutate({ id: due._id, enabled: next })
+                      }
+                    />
+                  </div>
+
+                  <dl className="mt-3 space-y-1.5 text-sm">
+                    <div className="flex justify-between gap-4">
+                      <dt className="text-muted">Amount</dt>
+                      <dd className="text-heading">
+                        {formatNaira(due.amount ?? 0)}
+                      </dd>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <dt className="text-muted">Periodic</dt>
+                      <dd className="text-heading">{titleCase(due.duration)}</dd>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <dt className="text-muted">Account No.</dt>
+                      <dd className="font-mono text-heading">
+                        {due.accountNumber ?? "—"}
+                      </dd>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <dt className="text-muted">Bank</dt>
+                      <dd className="break-words text-right text-heading">
+                        {due.bankName ?? "—"}
+                      </dd>
+                    </div>
+                  </dl>
+
+                  <div className="mt-3 flex justify-end gap-1 border-t border-hairline pt-3">
+                    <button
+                      type="button"
+                      onClick={() => setEditing(due)}
+                      aria-label={`Edit ${due.name || "unnamed bill"}`}
+                      className="inline-flex size-10 items-center justify-center rounded-field text-brand hover:bg-brand-tint"
+                    >
+                      <Pencil className="size-4" aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Delete ${due.name || "unnamed bill"}`}
+                      onClick={() => {
+                        if (
+                          window.confirm(
+                            `Delete "${due.name || "this unnamed bill"}"? Residents will no longer be able to pay it.`,
+                          )
+                        ) {
+                          remove.mutate(due._id);
+                        }
+                      }}
+                      className="inline-flex size-10 items-center justify-center rounded-field text-bad hover:bg-bad-tint"
+                    >
+                      <Trash2 className="size-4" aria-hidden="true" />
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+
+            <div className="mt-5 hidden lg:block">
               <table className="w-full text-left text-sm">
                 <caption className="sr-only">
                   Bills residents can pay
@@ -528,6 +642,7 @@ function DuesPanel({ estateId }: { estateId?: string }) {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </section>
       ) : null}

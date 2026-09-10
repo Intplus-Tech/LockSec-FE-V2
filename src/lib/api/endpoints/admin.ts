@@ -227,21 +227,22 @@ export const createSubscription = (input: {
 /* --- Estate settings and password --------------------------------------- */
 
 /**
- * Change the signed-in admin's password.
+ * Change the signed-in user's password.
  *
- * PATCH /users/profile/update is the only endpoint that plausibly accepts
- * this — its request schema (`UpdateUserInput`) is referenced by the spec but
- * never defined, so what it takes is unknown. We send the obvious shape and
- * let the caller handle a rejection.
+ * Uses PATCH /auth/change-password, which exists as of the API update. Before
+ * that we posted to /users/profile/update on the guess that it might accept a
+ * password — it accepted the request, ignored the password fields, and
+ * returned 200. The updated spec confirms why: `UpdateUserInput` contains
+ * firstName, lastName, phoneNumber and address, and no password at all.
  *
- * If it turns out not to support passwords, the fallback offered in the UI is
- * the email reset flow, which definitely works.
+ * Worth remembering as a pattern. An endpoint returning 200 tells you it
+ * accepted your request, not that it did what you meant.
  */
 export const changePassword = (input: {
   oldPassword: string;
   newPassword: string;
 }) =>
-  apiRequest<never>("/users/profile/update", {
+  apiRequest<never>("/auth/change-password", {
     method: "PATCH",
     body: input,
   }) as Promise<Record<string, unknown>>;
