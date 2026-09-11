@@ -109,9 +109,19 @@ export const createAccessCode = (input: CreateAccessCodeInput) =>
 type AccessCode = Awaited<ReturnType<typeof getAccessCode>>;
 
 /**
- * GET /access-codes/resident currently returns a 500 from an unhandled
- * exception in the backend's Mongoose query. Tolerated so the dashboard and
- * history screen stay usable while it is broken.
+ * STILL BROKEN. Returns 500:
+ *
+ *     "Cannot read properties of undefined (reading 'populated')"
+ *
+ * An unhandled Mongoose exception in the backend, so nothing sent differently
+ * will help. There is no workaround either: `/access-codes` is admin-only and
+ * returns 403 to residents, and `/access-codes/{id}` needs ids that only the
+ * broken list can supply.
+ *
+ * Tolerated so the dashboard and history screen stay usable. The history tab
+ * says the list is unavailable rather than claiming the resident has no
+ * codes — which would be untrue, and would make them think theirs had
+ * vanished. Backend issue 23.
  */
 export const listMyAccessCodes = (page = 1, limit = 20) =>
   tolerate<AccessCode[]>(
@@ -134,9 +144,13 @@ const getOneDue = () =>
   }).then((r) => r.data.data[0]);
 
 /**
- * GET /dues/estate is marked "Estate Admins only" and refuses residents, so
- * a resident cannot see what they owe. Backend issue 18 — the most serious
- * one on the list, since paying dues is half of what this app is for.
+ * Residents can now read this — confirmed by a live 200 response. It was
+ * previously 403 "Forbidden: insufficient role", which blocked the dashboard's
+ * Amount Due and the whole Make Estate Bill screen.
+ *
+ * Still wrapped in `tolerate` on purpose. Being permitted to call an endpoint
+ * is not the same as it always succeeding, and the alternative when it fails
+ * is a confident ₦0 that a resident would read as "you owe nothing".
  */
 export const listEstateDues = () =>
   tolerate<Due[]>(

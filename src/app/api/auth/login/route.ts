@@ -1,17 +1,30 @@
 import { NextResponse } from "next/server";
-import { callBackend, messageFrom } from "@/lib/api/backend";
+import { BackendError, callBackend, messageFrom } from "@/lib/api/backend";
 import { setAuthCookies } from "@/lib/auth/cookies";
 import { decodeToken } from "@/lib/auth/jwt";
 import { homeFor } from "@/lib/auth/roles";
-import { loginResponseSchema, loginSchema } from "@/lib/schemas/auth";
+import {
+  loginSchema,
+  loginResponseSchema,
+  roleSchema,
+} from "@/lib/schemas/auth";
 
 /**
- * Login for residents, business owners and admins.
+ * Sign in, and put the tokens in httpOnly cookies.
  *
- * The browser posts here rather than to the backend directly, so that the
- * tokens land in httpOnly cookies that JavaScript cannot read.
+ * WHAT CHANGED. The API now returns `role` and `estateId` in the response
+ * body. Previously they existed only inside the JWT, so this handler had to
+ * decode the token to find out who had just signed in — and a wrong guess at
+ * the role string (`admin` instead of `estate_admin`) once produced an
+ * infinite redirect loop that presented as a network error.
  *
- * We return the role and a redirect target, but never the tokens.
+ * So: prefer the body, fall back to the token.
+ *
+ * The fallback is not redundancy for its own sake. A deployed API can lag its
+ * own documentation — we have seen exactly that on this project — and a login
+ * that fails because one newly-documented field is missing would be a bad
+ * trade for slightly tidier code. When the body has it, we use it; when it
+ * does not, the old path still works.
  */
 export async function POST(request: Request) {
   const raw = await request.json().catch(() => null);
@@ -24,16 +37,33 @@ export async function POST(request: Request) {
     );
   }
 
-  const result = await callBackend("/auth/login", {
-    method: "POST",
-    body: parsed.data,
-  });
+  let result;
+  try {
+    result = await callBackend("/auth/login", {
+      method: "POST",
+      body: parsed.data,
+    });
+  } catch (error) {
+    if (error instanceof BackendError) {
+      return NextResponse.json(
+        { message: error.message },
+        { status: error.status },
+      );
+    }
+    return NextResponse.json(
+      { message: "Could not reach the server. Try again in a moment." },
+      { status: 503 },
+    );
+  }
 
   if (!result.ok) {
-    // Pass the backend's own wording through — it distinguishes bad
-    // credentials from rate limiting, and the user deserves to know which.
     return NextResponse.json(
-      { message: messageFrom(result.body, "Login failed") },
+      {
+        message:
+          result.status === 401
+            ? "That email and password don't match."
+            : messageFrom(result.body, "Sign in failed"),
+      },
       { status: result.status },
     );
   }
@@ -47,25 +77,48 @@ export async function POST(request: Request) {
     );
   }
 
-  const { token, refreshToken, user } = validated.data.data;
+  const { user, token, refreshToken } = validated.data.data;
 
-  // The role is not in the response body — only in the token.
+  // The body first, the token as a fallback.
   const claims = decodeToken(token);
-  if (!claims) {
+  const rawRole = user.role ?? claims?.role;
+  const estateId = user.estateId ?? claims?.estateId;
+
+  /**
+   * Narrow the arbitrary string to a role we recognise.
+   *
+   * Casting would compile and be wrong. `homeFor()` maps a role to a home
+   * screen, and an unrecognised value would return undefined — which is
+   * exactly what produced the infinite redirect loop when the docs said
+   * `admin` and the server said `estate_admin`. The proxy would bounce the
+   * user to a route that bounced them back.
+   *
+   * So an unknown role is an explicit, visible failure with a log line
+   * naming the value, rather than a redirect loop nobody can diagnose.
+   */
+  const parsedRole = roleSchema.safeParse(rawRole);
+
+  if (!parsedRole.success) {
+    console.error(
+      `Unrecognised role from the API: ${JSON.stringify(rawRole)}. ` +
+        `Add it to roleSchema in lib/schemas/auth.ts if it is legitimate.`,
+    );
     return NextResponse.json(
-      { message: "Could not read the session token" },
+      { message: "Could not determine your account type" },
       { status: 502 },
     );
   }
 
+  const role = parsedRole.data;
+
   const response = NextResponse.json({
     user: {
       id: user._id,
-      email: user.email,
-      role: claims.role,
-      estateId: claims.estateId,
+      email: user.email ?? claims?.email,
+      role,
+      estateId,
     },
-    redirectTo: homeFor(claims.role),
+    redirectTo: homeFor(role),
   });
 
   setAuthCookies(response, { token, refreshToken });

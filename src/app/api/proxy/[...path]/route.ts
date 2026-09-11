@@ -86,18 +86,23 @@ async function handle(request: Request, { params }: Params) {
     }
 
     if (refreshed?.ok) {
-      // The spec documents this endpoint as returning only { refreshToken },
-      // which cannot be right — you would have nothing to authenticate with.
-      // So look in every plausible place for a new access token.
+      /**
+       * The updated spec documents this as returning `{ token }`, which is
+       * what it should always have been — the original said it returned only
+       * a refresh token, leaving nothing to authenticate the next request
+       * with.
+       *
+       * Both the documented shape and the enveloped `{ data: { token } }` are
+       * accepted. Two possibilities rather than the four we used to guess at,
+       * and the reason is written down instead of inferred.
+       */
       const rb = refreshed.body as {
-        data?: { token?: string; accessToken?: string; refreshToken?: string };
+        data?: { token?: string; refreshToken?: string };
         token?: string;
-        accessToken?: string;
         refreshToken?: string;
       };
 
-      const newToken =
-        rb.data?.token ?? rb.data?.accessToken ?? rb.token ?? rb.accessToken;
+      const newToken = rb.data?.token ?? rb.token;
       const newRefresh = rb.data?.refreshToken ?? rb.refreshToken;
 
       if (newToken) {

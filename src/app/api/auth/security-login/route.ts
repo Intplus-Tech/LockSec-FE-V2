@@ -1,34 +1,37 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { BackendError, callBackend, messageFrom } from "@/lib/api/backend";
 import { setAuthCookies } from "@/lib/auth/cookies";
 import { decodeToken } from "@/lib/auth/jwt";
 import { homeFor } from "@/lib/auth/roles";
-import { securityLoginSchema } from "@/lib/schemas/auth";
-import { securityLoginResponseSchema } from "@/lib/schemas/security";
+import { roleSchema, securityLoginSchema } from "@/lib/schemas/auth";
 
 /**
  * Security staff sign in with a numeric code — no email, no password.
  *
- * This handler used to guess at the response shape. It no longer needs to:
- * a real call confirmed it, and the schema now matches exactly.
+ * The response shape is confirmed by a real call and now matches the updated
+ * documentation, which also adds `role` and `estateId` to the security
+ * object. Same approach as /auth/login: prefer the body, fall back to the
+ * token.
  *
- *   {
- *     "message": "Login successful",
- *     "data": {
- *       "security": { "_id": "...", "securityCode": "239097" },
- *       "token": "...",
- *       "refreshToken": "..."
- *     }
- *   }
- *
- * Note this is the same envelope as /auth/login, with `security` where the
- * other has `user`. The spec documented it as returning a bare profile with
- * no tokens at all, which was wrong.
- *
- * The decoded token carries role "security" and, unlike the resident and
- * admin tokens, NO estateId. Nothing here depends on that, but it is worth
- * knowing when scoping data later.
+ * Worth noting the original spec documented this endpoint as returning a
+ * profile with no tokens at all, which could not have been true of a login
+ * endpoint. It is correct now.
  */
+const securityLoginResponseSchema = z.object({
+  message: z.string().optional(),
+  data: z.object({
+    security: z.object({
+      _id: z.string(),
+      securityCode: z.string().optional(),
+      role: z.string().optional(),
+      estateId: z.string().nullish(),
+    }),
+    token: z.string(),
+    refreshToken: z.string().optional(),
+  }),
+});
+
 export async function POST(request: Request) {
   const raw = await request.json().catch(() => null);
 
@@ -47,8 +50,6 @@ export async function POST(request: Request) {
       body: parsed.data,
     });
   } catch (error) {
-    // The backend sleeps on Render's free tier. Turn a network failure into
-    // a readable message rather than letting it become an unhandled 500.
     if (error instanceof BackendError) {
       return NextResponse.json(
         { message: error.message },
@@ -82,23 +83,35 @@ export async function POST(request: Request) {
     );
   }
 
-  const { token, refreshToken, security } = validated.data.data;
+  const { security, token, refreshToken } = validated.data.data;
 
   const claims = decodeToken(token);
-  if (!claims) {
-    return NextResponse.json(
-      { message: "Could not read the session token" },
-      { status: 502 },
+  const rawRole = security.role ?? claims?.role ?? "security";
+
+  /**
+   * Same narrowing as /auth/login. This endpoint only ever issues security
+   * accounts, so "security" is a sound default — but the value still has to
+   * be a role we recognise before it reaches homeFor(), or an unexpected
+   * string becomes a redirect loop rather than an error.
+   */
+  const parsedRole = roleSchema.safeParse(rawRole);
+  const role = parsedRole.success ? parsedRole.data : "security";
+
+  if (!parsedRole.success) {
+    console.warn(
+      `Unrecognised role on security login: ${JSON.stringify(rawRole)}. ` +
+        `Falling back to "security".`,
     );
   }
 
   const response = NextResponse.json({
     user: {
       id: security._id,
-      email: claims.email,
-      role: claims.role,
+      email: claims?.email,
+      role,
+      estateId: security.estateId ?? claims?.estateId,
     },
-    redirectTo: homeFor(claims.role),
+    redirectTo: homeFor(role),
   });
 
   setAuthCookies(response, { token, refreshToken });
