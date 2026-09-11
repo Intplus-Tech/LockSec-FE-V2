@@ -43,6 +43,26 @@ export interface Tolerated<T> {
   reason?: string;
 }
 
+/**
+ * Statuses that mean "we could not get this data", as opposed to "the
+ * request was wrong".
+ *
+ *   403  the backend refuses residents this endpoint
+ *   500  an unhandled exception inside the backend
+ *   502  a bad gateway between us and it
+ *   503  the backend is unreachable or asleep
+ *   504  it took too long to answer
+ *
+ * The gateway statuses were missing, which produced exactly the bug this
+ * whole mechanism exists to prevent: with the backend down, the dues query
+ * threw instead of being tolerated, `dues.data` was undefined, and the
+ * dashboard fell back to `?? 0` and displayed a confident **₦0**.
+ *
+ * A resident seeing ₦0 concludes they owe nothing. That is worse than an
+ * error message, because there is no reason for them to doubt it.
+ */
+const UNAVAILABLE_STATUSES = [403, 500, 502, 503, 504];
+
 async function tolerate<T>(
   work: () => Promise<T>,
   fallback: T,
@@ -101,7 +121,7 @@ export const listMyAccessCodes = (page = 1, limit = 20) =>
         schema: paginatedEnvelope(accessCodeSchema),
       }).then((r) => r.data.data),
     [],
-    [500, 403],
+    UNAVAILABLE_STATUSES,
   );
 
 /* --- Dues --------------------------------------------------------------- */
@@ -126,7 +146,7 @@ export const listEstateDues = () =>
         schema: paginatedEnvelope(dueSchema),
       }).then((r) => r.data.data),
     [],
-    [403],
+    UNAVAILABLE_STATUSES,
   );
 
 /* --- Payments ----------------------------------------------------------- */
@@ -146,7 +166,7 @@ export const listMyTransactions = (page = 1, limit = 20) =>
         schema: paginatedEnvelope(transactionSchema),
       }).then((r) => r.data.data),
     [],
-    [500, 403],
+    UNAVAILABLE_STATUSES,
   );
 
 export const initiatePayment = (input: {

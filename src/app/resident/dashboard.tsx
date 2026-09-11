@@ -67,8 +67,17 @@ export function ResidentDashboard() {
     },
   });
 
-  const codesUnavailable = codes.data?.unavailable ?? false;
-  const duesUnavailable = dues.data?.unavailable ?? false;
+  /**
+   * "Unavailable" covers two cases: the request was tolerated and came back
+   * flagged, OR it threw outright. Both mean we do not know the number.
+   *
+   * Checking `isError` as well as the flag is deliberate belt and braces. If
+   * a status is ever missing from the tolerated list, the worst outcome is an
+   * honest "Unavailable" rather than a confident ₦0 that a resident would
+   * reasonably read as "you owe nothing".
+   */
+  const codesUnavailable = (codes.data?.unavailable ?? false) || codes.isError;
+  const duesUnavailable = (dues.data?.unavailable ?? false) || dues.isError;
 
   /**
    * "Active" means usable, not status === "active". A newly created code
@@ -89,7 +98,9 @@ export function ResidentDashboard() {
   const firstName = profile.data?.firstName ?? "";
   const address = profile.data?.address ?? "";
 
-  const activeCode = codes.data?.value.find((c) => isUsableCode(c));
+  const activeCode = codesUnavailable
+    ? undefined
+    : codes.data?.value.find((c) => isUsableCode(c));
 
   return (
     <div className="flex min-h-dvh flex-col bg-ink">
