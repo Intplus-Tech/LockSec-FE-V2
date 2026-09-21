@@ -137,6 +137,24 @@ export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 
 /* --- Registration ------------------------------------------------------- */
 
+/*
+ * A SCHEMA MUST MATCH ITS FORM, FIELD FOR FIELD.
+ *
+ * An earlier version of both schemas below required a `confirmPassword`
+ * field. Neither form has one. Validation failed on a field that was never
+ * rendered, no error appeared anywhere on screen, and the Create Account
+ * button silently did nothing — in production, on both sign-up flows.
+ *
+ * TypeScript cannot catch this. The build passed cleanly. The only defence is
+ * checking which fields the form actually registers before changing the
+ * schema:
+ *
+ *     grep -o 'register("[a-zA-Z]*"' path/to/form.tsx
+ *
+ * Any field the schema requires that is not in that list is a bug of exactly
+ * this kind.
+ */
+
 /**
  * Estate admin registration.
  *
@@ -144,28 +162,22 @@ export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
  * happens here with a message beside the offending field rather than as a
  * 400 several seconds later.
  */
-export const registerEstateSchema = z
-  .object({
-    estateName: z
-      .string()
-      .min(2, "Estate name is too short")
-      .max(120, "Estate name is too long"),
-    fullName: z
-      .string()
-      .min(2, "Enter your full name")
-      .max(120, "That name is too long"),
-    email: emailSchema,
-    phoneNumber: z
-      .string()
-      .min(7, "Enter a valid phone number")
-      .max(20, "Enter a valid phone number"),
-    password: passwordSchema,
-    confirmPassword: z.string(),
-  })
-  .refine((d) => d.password === d.confirmPassword, {
-    error: "Passwords do not match",
-    path: ["confirmPassword"],
-  });
+export const registerEstateSchema = z.object({
+  estateName: z
+    .string()
+    .min(2, "Estate name is too short")
+    .max(120, "Estate name is too long"),
+  fullName: z
+    .string()
+    .min(2, "Enter your full name")
+    .max(120, "That name is too long"),
+  email: emailSchema,
+  phoneNumber: z
+    .string()
+    .min(7, "Enter a valid phone number")
+    .max(20, "Enter a valid phone number"),
+  password: passwordSchema,
+});
 
 export type RegisterEstateInput = z.infer<typeof registerEstateSchema>;
 
@@ -201,17 +213,14 @@ export const registerResidentSchema = z
       .string()
       .min(5, "Address is too short")
       .max(200, "Address is too long"),
+    // Defaulted to "resident" by the form and changed by the radio cards, so
+    // it is always present — required is correct here.
     role: z.enum(["resident", "business_owner"]),
     businessName: z.string().optional(),
     industryType: z
       .enum(["technology", "finance", "healthcare", "education", "other"])
       .optional(),
     password: passwordSchema,
-    confirmPassword: z.string(),
-  })
-  .refine((d) => d.password === d.confirmPassword, {
-    error: "Passwords do not match",
-    path: ["confirmPassword"],
   })
   .refine(
     (d) => d.role !== "business_owner" || Boolean(d.businessName?.trim()),
