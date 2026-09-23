@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import Link from "next/link";
 import { MobileShell } from "@/components/layout/mobile-shell";
+import { Splash } from "@/components/brand/splash";
 import { ResidentRegisterForm } from "./register-form";
 
 export const metadata: Metadata = {
@@ -21,26 +22,33 @@ export const metadata: Metadata = {
  */
 export default function ResidentRegisterPage() {
   return (
-    <MobileShell
-      back="/login"
-      title="Register"
-      subtitle={
-        <>
-          Already have an account?{" "}
-          <Link
-            href="/login"
-            className="font-medium text-brand underline underline-offset-4"
-          >
-            Log In
-          </Link>
-        </>
-      }
-    >
-      {/* Reads ?estate= from the URL — unknown while prerendering, so the
-          form needs a Suspense boundary around it. */}
-      <Suspense fallback={<div className="h-96" aria-hidden="true" />}>
-        <ResidentRegisterForm />
-      </Suspense>
-    </MobileShell>
+    <>
+      {/* An invite link is a way into the app, so the opening belongs here
+          too. Shown once per session, so a resident who then signs in does
+          not see it a second time. */}
+      <Splash storageKey="locksec:splash:resident" />
+
+      <MobileShell
+        back="/login"
+        title="Register"
+        subtitle={
+          <>
+            Already have an account?{" "}
+            <Link
+              href="/login"
+              className="font-medium text-brand underline underline-offset-4"
+            >
+              Log In
+            </Link>
+          </>
+        }
+      >
+        {/* Reads ?estate= from the URL — unknown while prerendering, so the
+            form needs a Suspense boundary around it. */}
+        <Suspense fallback={<div className="h-96" aria-hidden="true" />}>
+          <ResidentRegisterForm />
+        </Suspense>
+      </MobileShell>
+    </>
   );
 }

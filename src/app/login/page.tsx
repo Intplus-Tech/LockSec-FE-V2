@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { Splash } from "@/components/brand/splash";
 import Link from "next/link";
 import { Logo } from "@/components/brand/logo";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,6 +17,10 @@ export const metadata: Metadata = {
 export default function ResidentLoginPage() {
   return (
     <div className="flex min-h-dvh flex-col bg-white">
+      {/* The opening comes before the sign-in screen: this is the way
+          into the resident app. */}
+      <Splash storageKey="locksec:splash:resident" />
+
       <header className="surface-stars px-5 pb-9 pt-7 text-white min-[400px]:px-6 min-[400px]:pb-10 min-[400px]:pt-8">
         <div className="mx-auto w-full max-w-md">
           <Logo tone="light" />

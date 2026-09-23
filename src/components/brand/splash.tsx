@@ -7,18 +7,24 @@ import { cn } from "@/lib/utils";
 /**
  * The opening screen for the resident and security apps.
  *
- * TWO THINGS THIS DELIBERATELY AVOIDS.
+ * WHERE IT APPEARS. On the way *in* — before the sign-in screen, not after
+ * it. The sign-in screen is the first screen of the app, so an opening that
+ * appeared behind it would be arriving late.
  *
- * It does not add an artificial delay on top of a page that is already ready.
- * Where there is real loading to wait for — the resident dashboard fetches a
- * profile, codes and dues before it can show anything — the splash covers
- * that instead of a blank frame. `minMs` only stops it flashing past too
- * quickly to read on a fast connection.
+ * It is mounted on the resident and security layouts and on the shared
+ * sign-in and registration pages, which between them cover every way into
+ * either app: through the landing page, from a bookmark, or straight to a
+ * deep link such as an estate's invite link.
  *
- * And it shows once per browser session, not on every navigation. A guard
- * working a gate returns to this screen after every visitor; a logo animation
- * each time would be maddening. Session storage rather than local, so a fresh
- * visit tomorrow gets the full opening again.
+ * ONCE PER SESSION. That coverage only works because the splash remembers
+ * having been shown. A guard returns to the gate screen after every visitor,
+ * and a resident moves between four screens — a logo animation each time
+ * would be an obstacle rather than a flourish. Session storage rather than
+ * local, so a fresh visit tomorrow gets the full opening again.
+ *
+ * NO ARTIFICIAL WAIT WHERE THERE IS REAL LOADING. Pass `ready` and the splash
+ * stays until the screen behind it has what it needs; `minMs` only stops it
+ * flashing past too quickly to read on a fast connection.
  */
 export function Splash({
   ready = true,
