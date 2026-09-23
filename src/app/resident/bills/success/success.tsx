@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2 } from "lucide-react";
@@ -8,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   getResidentProfile,
   listEstateDues,
+  verifyPayment,
 } from "@/lib/api/endpoints/resident";
 import { formatNaira } from "@/lib/format";
 
@@ -27,6 +29,45 @@ export function PaymentSuccess() {
     queryKey: ["resident", "profile"],
     queryFn: getResidentProfile,
   });
+
+  /**
+   * Confirm the payment with the server rather than trusting the redirect.
+   *
+   * Coming back from a checkout page means the browser returned, not that the
+   * payment went through — a user can abandon the page, or a card can be
+   * declined, and the return trip looks the same either way. The reference is
+   * read from the URL if the provider put it there, otherwise from where the
+   * summary screen stashed it before leaving.
+   */
+  const [reference, setReference] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fromUrl =
+      searchParams.get("reference") ??
+      searchParams.get("transaction_ref") ??
+      searchParams.get("tx_ref");
+
+    if (fromUrl) {
+      setReference(fromUrl);
+      return;
+    }
+
+    try {
+      setReference(window.sessionStorage.getItem("locksec:payment-ref"));
+    } catch {
+      setReference(null);
+    }
+  }, [searchParams]);
+
+  const verification = useQuery({
+    queryKey: ["payment", "verify", reference],
+    queryFn: () => verifyPayment(reference as string),
+    enabled: Boolean(reference),
+    retry: false,
+  });
+
+  const verified = verification.isSuccess;
+  const verifyFailed = verification.isError;
 
   const due = dues.data?.value.find((d) => d._id === dueId);
   const subtotal = due ? (due.amount ?? 0) * months : 0;
@@ -54,6 +95,29 @@ export function PaymentSuccess() {
             <CheckCircle2 className="size-7 text-ok" aria-hidden="true" />
             Success
           </p>
+
+          {/* What the server says, not what the redirect implies. */}
+          {reference ? (
+            <p className="mt-3 text-center text-sm">
+              {verification.isPending ? (
+                <span className="text-muted">Confirming with the bank…</span>
+              ) : verified ? (
+                <span className="text-ok">Payment confirmed</span>
+              ) : verifyFailed ? (
+                <span className="text-warn">
+                  We couldn&rsquo;t confirm this payment yet. If money left your
+                  account, it will show in your history shortly — keep the
+                  reference below.
+                </span>
+              ) : null}
+            </p>
+          ) : null}
+
+          {reference ? (
+            <p className="mt-2 text-center font-mono text-xs text-faint">
+              {reference}
+            </p>
+          ) : null}
 
           {dues.isLoading ? (
             <Skeleton className="mt-7 h-64 w-full" />

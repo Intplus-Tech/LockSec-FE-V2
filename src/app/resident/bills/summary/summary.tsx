@@ -1,11 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { FormError } from "@/components/ui/form-error";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  findPaymentRef,
   findPaymentUrl,
   getResidentProfile,
   initiatePayment,
@@ -23,6 +25,7 @@ const SERVICE_CHARGE = 100;
 
 export function PaymentSummary() {
   const router = useRouter();
+  const [noCheckout, setNoCheckout] = useState(false);
   const searchParams = useSearchParams();
   const dueId = searchParams.get("due") ?? "";
   const months = Number(searchParams.get("months") ?? "1");
@@ -51,15 +54,37 @@ export function PaymentSummary() {
         type: "estate_dues",
       }),
     onSuccess: (body) => {
-      // If the backend hands back a payment-provider URL, that is where the
-      // user must go to actually pay. Otherwise fall through to the success
-      // screen, which is what the current backend appears to do.
       const url = findPaymentUrl(body);
+      const reference = findPaymentRef(body);
+
+      /**
+       * The provider's checkout page is where money actually moves. Leaving
+       * the app is correct here — this is a hosted payment page, and the user
+       * comes back afterwards.
+       *
+       * The reference is stashed first so the success screen can verify the
+       * payment on return rather than taking the redirect as proof. Session
+       * storage, not local: it belongs to this attempt only.
+       */
       if (url) {
+        if (reference) {
+          try {
+            window.sessionStorage.setItem("locksec:payment-ref", reference);
+          } catch {
+            // Storage can be unavailable in private modes. Not fatal — the
+            // success screen simply cannot verify without it.
+          }
+        }
         window.location.href = url;
         return;
       }
-      router.push(`/resident/bills/success?due=${dueId}&months=${months}`);
+
+      /**
+       * No checkout link means nothing was charged. Saying "Payment
+       * Successful" here would be a lie, and it is one this screen told for a
+       * while, so the failure is explicit instead.
+       */
+      setNoCheckout(true);
     },
   });
 
@@ -85,7 +110,13 @@ export function PaymentSummary() {
   return (
     <div className="flex min-h-[60vh] flex-col">
       <FormError
-        message={pay.error ? (pay.error as Error).message : null}
+        message={
+          noCheckout
+            ? "This payment couldn't be started — the server didn't return a checkout page. Nothing has been charged. Please contact your estate office."
+            : pay.error
+              ? (pay.error as Error).message
+              : null
+        }
         className="mb-5"
       />
 

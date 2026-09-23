@@ -185,21 +185,59 @@ export const verifyPayment = (reference: string) =>
     `/payments/verify/${encodeURIComponent(reference)}`,
   ) as Promise<Record<string, unknown>>;
 
-/** Payment providers name their redirect a dozen different ways. */
+/**
+ * Find the provider's checkout link in a payment response.
+ *
+ * The backend uses Squad. A successful initiate returns, among other things:
+ *
+ *     "checkout_url": "https://sandbox-pay.squadco.com/c_U0JDNDVF…",
+ *     "transaction_ref": "SQTECH6392574733742200002",
+ *     "transaction_amount": 10000        // kobo, so NGN 100
+ *
+ * An earlier version of this list had `checkoutUrl` in camelCase but not
+ * `checkout_url` with an underscore — so the link was present, went
+ * unrecognised, and the app showed "Payment Successfully" without anyone
+ * being charged. Both spellings are now covered, along with the other names
+ * providers commonly use.
+ *
+ * The lesson is narrow but worth keeping: when guessing at field names, cover
+ * both casings. The cost of a miss here was a payment screen that lied.
+ */
 export function findPaymentUrl(body: Record<string, unknown>): string | null {
   const data = (body?.data ?? body) as Record<string, unknown>;
 
   for (const key of [
+    "checkout_url",
+    "checkoutUrl",
     "authorization_url",
     "authorizationUrl",
-    "paymentUrl",
     "payment_url",
-    "link",
-    "checkoutUrl",
+    "paymentUrl",
+    "redirect_url",
     "redirectUrl",
+    "link",
+    "url",
   ]) {
     const value = data?.[key];
     if (typeof value === "string" && value.startsWith("http")) return value;
+  }
+
+  return null;
+}
+
+/**
+ * The provider's reference for this payment.
+ *
+ * Kept so the success screen can confirm the payment really completed by
+ * calling /payments/verify/{reference}, rather than assuming it did because
+ * the browser came back.
+ */
+export function findPaymentRef(body: Record<string, unknown>): string | null {
+  const data = (body?.data ?? body) as Record<string, unknown>;
+
+  for (const key of ["transaction_ref", "transactionRef", "tx_ref", "reference"]) {
+    const value = data?.[key];
+    if (typeof value === "string" && value) return value;
   }
 
   return null;
