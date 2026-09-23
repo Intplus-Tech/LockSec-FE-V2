@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Search } from "lucide-react";
 import { AdminShell } from "@/components/admin/shell";
@@ -31,7 +32,17 @@ const PER_PAGE = 10;
 
 export function ResidentManagement() {
   const queryClient = useQueryClient();
-  const [search, setSearch] = useState("");
+
+  /**
+   * The search box starts from the URL, so ?search=… works as a link.
+   *
+   * That is what makes "View resident" on the Payments page possible: it can
+   * hand this screen something to look up. Previously the search lived only
+   * in component state, so arriving with a query in the URL landed on an
+   * unfiltered list and quietly ignored it.
+   */
+  const params = useSearchParams();
+  const [search, setSearch] = useState(() => params.get("search") ?? "");
   const [page, setPage] = useState(1);
   const [addOpen, setAddOpen] = useState(false);
   const [pastPaymentFor, setPastPaymentFor] = useState<AdminResident | null>(null);

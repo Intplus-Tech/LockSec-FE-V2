@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Search } from "lucide-react";
 import { AdminShell } from "@/components/admin/shell";
@@ -20,6 +21,7 @@ import { formatNaira } from "@/lib/format";
 import { downloadCsv } from "@/lib/csv";
 import { useDebounced } from "@/lib/hooks/use-debounced";
 import { personFrom, type AdminTransaction } from "@/lib/schemas/admin";
+import { refId } from "@/lib/schemas/ref";
 
 const PER_PAGE = 10;
 
@@ -38,6 +40,7 @@ const PER_PAGE = 10;
  * and the dropdown comes back.
  */
 export function PaymentsAndDues() {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
 
@@ -206,27 +209,39 @@ export function PaymentsAndDues() {
               ? "Try a different search."
               : "Payments made by residents will appear here."
         }
-        rowAction={(row) => (
+        rowAction={(row) => {
           /**
-           * The design shows a three-dot menu here but never what is inside
-           * it. Rather than invent items, this offers the one action the data
-           * supports: look that resident up.
+           * The design shows a three-dot menu here but never says what is in
+           * it, so this offers the one action the data supports: look that
+           * resident up.
+           *
+           * It searches by ID rather than by name. The first version used the
+           * name, which fails twice over: the API returns `userId` as a bare
+           * id on transactions, so the Name column is empty and there was
+           * nothing to search for — and the menu item then did nothing at
+           * all, silently, which is the worst way for anything to fail.
+           *
+           * An id is always present, so the item is disabled only when there
+           * is genuinely nothing to look up. It says so rather than going
+           * quiet.
            */
-          <RowMenu
-            label={`Actions for ${personFrom(row.userId).name}`}
-            items={[
-              {
-                label: "View resident",
-                onSelect: () => {
-                  const name = personFrom(row.userId).name;
-                  if (name !== "—") {
-                    window.location.href = `/admin/residents?q=${encodeURIComponent(name)}`;
-                  }
+          const id = refId(row.userId ?? undefined);
+
+          return (
+            <RowMenu
+              label={`Actions for ${personFrom(row.userId).name}`}
+              items={[
+                {
+                  label: id ? "View resident" : "No resident on this payment",
+                  onSelect: () => {
+                    if (!id) return;
+                    router.push(`/admin/residents?search=${encodeURIComponent(id)}`);
+                  },
                 },
-              },
-            ]}
-          />
-        )}
+              ]}
+            />
+          );
+        }}
       />
 
       <Pagination page={page} pageCount={pageCount} onChange={setPage} />
