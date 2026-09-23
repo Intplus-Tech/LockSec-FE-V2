@@ -43,13 +43,13 @@ export function AdminDashboard() {
   });
 
   const transactions = useQuery({
-    queryKey: ["estate", "transactions"],
-    queryFn: () => listEstateTransactions(),
+    queryKey: ["estate", "transactions", "for-balances"],
+    queryFn: () => listEstateTransactions({ page: 1, limit: 100 }),
   });
 
   const residents = useQuery({
-    queryKey: ["estate", "residents"],
-    queryFn: () => listResidents(),
+    queryKey: ["estate", "residents", "overview"],
+    queryFn: () => listResidents({ page: 1, limit: 100 }),
   });
 
   const dues = useQuery({ queryKey: ["estate", "dues"], queryFn: listDues });
@@ -217,23 +217,20 @@ export function AdminDashboard() {
               </div>
             ) : (
               /**
-               * The Figma shows a street address here. The estate record has
-               * no address field — the API returns estateName, fullName,
-               * email and phoneNumber only. So this shows the contact details
-               * that do exist rather than a permanent "Address not set".
-               *
-               * Backend issue 29: add an address to the estate model.
+               * The estate model now has an address, so the panel matches the
+               * design. Until an admin fills it in the field is null, and the
+               * line is left out rather than showing an empty gap.
                */
               <div className="mt-3 space-y-1 text-sm text-muted">
                 <p className="font-medium text-heading">
                   {estate.data?.estateName ?? "—"}
                 </p>
-                {estate.data?.fullName ? <p>{estate.data.fullName}</p> : null}
-                {estate.data?.email ? (
-                  <p className="break-all">{estate.data.email}</p>
-                ) : null}
+                {estate.data?.address ? <p>{estate.data.address}</p> : null}
                 {estate.data?.phoneNumber ? (
                   <p>{estate.data.phoneNumber}</p>
+                ) : null}
+                {estate.data?.email ? (
+                  <p className="break-all">{estate.data.email}</p>
                 ) : null}
               </div>
             )}

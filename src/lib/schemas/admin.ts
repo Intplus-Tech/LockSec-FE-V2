@@ -17,10 +17,21 @@ export const estateSchema = z.object({
   userId: refSchema.nullish(),
   estateName: z.string().nullish(),
   fullName: z.string().nullish(),
+  /**
+   * The admin's login email. Returned only on GET /estates/profile, attached
+   * from the linked user record rather than stored on the estate — so treat
+   * it as optional everywhere else.
+   */
   email: z.string().nullish(),
   phoneNumber: z.string().nullish(),
   address: z.string().nullish(),
+  /** The two Settings master switches, writable via PATCH /estates/profile. */
+  accessCodeEnabled: z.boolean().nullish(),
+  paymentCollectionEnabled: z.boolean().nullish(),
+  /** "How many Entrance do you have?" in the design. */
+  entranceCount: z.number().nullish(),
   createdAt: z.string().nullish(),
+  updatedAt: z.string().nullish(),
 });
 
 export type Estate = z.infer<typeof estateSchema>;

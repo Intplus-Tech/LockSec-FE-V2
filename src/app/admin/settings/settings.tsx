@@ -25,7 +25,7 @@ import {
   getEstateProfile,
   listDues,
   updateDue,
-  updateEstateSettings,
+  updateEstateProfile,
 } from "@/lib/api/endpoints/admin";
 import {
   DURATIONS,
@@ -97,7 +97,7 @@ export function SettingsScreen() {
           {tab === "password" ? (
             <UpdatePasswordPanel />
           ) : (
-            <DuesPanel estateId={estate.data?._id} />
+            <DuesPanel />
           )}
         </div>
       </div>
@@ -317,52 +317,49 @@ const ENTRANCE_OPTIONS = Array.from({ length: 10 }, (_, i) => ({
   label: String(i + 1),
 }));
 
-function DuesPanel({ estateId }: { estateId?: string }) {
+function DuesPanel() {
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<AdminDue | null>(null);
   const [creating, setCreating] = useState(false);
-
-  // The two master switches from the design.
-  const [accessCode, setAccessCode] = useState(true);
-  const [collection, setCollection] = useState(true);
-  const [entrances, setEntrances] = useState("1");
   const [settingsError, setSettingsError] = useState<string | null>(null);
+
+  const estate = useQuery({
+    queryKey: ["estate", "profile"],
+    queryFn: getEstateProfile,
+  });
 
   const dues = useQuery({ queryKey: ["estate", "dues"], queryFn: listDues });
 
   /**
-   * These switches have no endpoint. PATCH /estates/{id} is attempted so that
-   * they start working the moment the backend supports them; if it refuses,
-   * the switch reverts and says so rather than pretending the change stuck.
+   * These settings now save for real.
+   *
+   * For most of the build they could be read and not written: the only route
+   * to change an estate was PATCH /estates/{id}, restricted to super admins,
+   * so every switch reverted with an apology. The API now has
+   * PATCH /estates/profile, scoped to the caller's own estate — verified by
+   * setting the entrance count and reading it back.
+   *
+   * The switches show the server's values rather than local state, so what is
+   * on screen is always what is stored. A failed save surfaces an error
+   * instead of leaving a switch looking changed.
    */
-  const saveSettings = useMutation({
-    mutationFn: (input: Record<string, unknown>) => {
-      if (!estateId) throw new Error("Estate not loaded");
-      return updateEstateSettings(estateId, input);
+  const save = useMutation({
+    mutationFn: updateEstateProfile,
+    onMutate: () => setSettingsError(null),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(["estate", "profile"], updated);
     },
-    onError: () =>
+    onError: (error) =>
       setSettingsError(
-        "This server can't save estate settings yet, so that switch didn't stick.",
+        error instanceof ApiError
+          ? error.detail
+          : "That setting couldn't be saved. Try again.",
       ),
   });
 
-  const setAccessCodeSetting = (next: boolean) => {
-    setSettingsError(null);
-    setAccessCode(next);
-    saveSettings.mutate(
-      { isAccessCodeEnabled: next },
-      { onError: () => setAccessCode(!next) },
-    );
-  };
-
-  const setCollectionSetting = (next: boolean) => {
-    setSettingsError(null);
-    setCollection(next);
-    saveSettings.mutate(
-      { isPaymentCollectionEnabled: next },
-      { onError: () => setCollection(!next) },
-    );
-  };
+  const accessCode = estate.data?.accessCodeEnabled !== false;
+  const collection = estate.data?.paymentCollectionEnabled !== false;
+  const entrances = String(estate.data?.entranceCount ?? 1);
 
   const toggle = useMutation({
     mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) =>
@@ -389,21 +386,19 @@ function DuesPanel({ estateId }: { estateId?: string }) {
               Your residents can now use the access control
             </p>
 
-            {/* Only relevant when access control is on, exactly as the Figma
-                shows it. */}
             {accessCode ? (
               <div className="mt-4 flex flex-wrap items-center gap-3">
-                <label
-                  htmlFor="entrances"
-                  className="text-xs text-muted"
-                >
+                <label htmlFor="entrances" className="text-xs text-muted">
                   How many Entrance do you have?
                 </label>
                 <div className="w-24">
                   <SelectField
                     id="entrances"
                     value={entrances}
-                    onChange={(event) => setEntrances(event.target.value)}
+                    disabled={save.isPending || estate.isLoading}
+                    onChange={(event) =>
+                      save.mutate({ entranceCount: Number(event.target.value) })
+                    }
                     options={ENTRANCE_OPTIONS}
                     className="h-9"
                   />
@@ -414,7 +409,8 @@ function DuesPanel({ estateId }: { estateId?: string }) {
 
           <Toggle
             checked={accessCode}
-            onChange={setAccessCodeSetting}
+            disabled={save.isPending || estate.isLoading}
+            onChange={(next) => save.mutate({ accessCodeEnabled: next })}
             label="Access code enabled for residents"
           />
         </div>
@@ -429,14 +425,15 @@ function DuesPanel({ estateId }: { estateId?: string }) {
 
           <Toggle
             checked={collection}
-            onChange={setCollectionSetting}
+            disabled={save.isPending || estate.isLoading}
+            onChange={(next) =>
+              save.mutate({ paymentCollectionEnabled: next })
+            }
             label="Payment collection enabled"
           />
         </div>
 
-        {settingsError ? (
-          <FormError message={settingsError} />
-        ) : null}
+        {settingsError ? <FormError message={settingsError} /> : null}
       </section>
 
       {/* The bills table only appears when collection is on, as in the
@@ -453,7 +450,7 @@ function DuesPanel({ estateId }: { estateId?: string }) {
 
           {dues.data?.unavailable ? (
             <FormError
-              message="The server could not return your dues."
+              message="We couldn't load your dues. Try again shortly."
               className="mt-4"
             />
           ) : null}
@@ -475,9 +472,8 @@ function DuesPanel({ estateId }: { estateId?: string }) {
             />
           ) : (
             <>
-            {/* Cards on phones — the same reasoning as the main data table:
-                eight columns cannot be read at 375px, and a card shows every
-                field rather than hiding half of them. */}
+            {/* Cards on phones — eight columns cannot be read at 375px, and a
+                card shows every field rather than hiding half of them. */}
             <ul className="mt-5 space-y-3 lg:hidden">
               {rows.map((due) => (
                 <li
@@ -557,9 +553,7 @@ function DuesPanel({ estateId }: { estateId?: string }) {
 
             <div className="mt-5 hidden lg:block">
               <table className="w-full text-left text-sm">
-                <caption className="sr-only">
-                  Bills residents can pay
-                </caption>
+                <caption className="sr-only">Bills residents can pay</caption>
                 <thead>
                   <tr className="border-b border-hairline text-xs text-muted">
                     <th scope="col" className="pb-2 pr-3 font-medium">Edit</th>
@@ -590,9 +584,6 @@ function DuesPanel({ estateId }: { estateId?: string }) {
                         </button>
                       </td>
                       <td className="py-3 pr-3 font-medium text-heading">
-                        {/* A due with no name exists in the database. Say
-                            "Unnamed bill" rather than rendering nothing, so
-                            the admin can find and fix it. */}
                         {due.name || (
                           <span className="italic text-faint">Unnamed bill</span>
                         )}

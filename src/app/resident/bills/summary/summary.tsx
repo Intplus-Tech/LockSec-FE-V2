@@ -46,7 +46,9 @@ export function PaymentSummary() {
       initiatePayment({
         amount: total,
         duration: months,
-        type: "estate_payments",
+        // See PAYMENT_TYPES in lib/schemas/resident.ts — the API wants
+        // "estate_dues", though the docs still say "estate_payments".
+        type: "estate_dues",
       }),
     onSuccess: (body) => {
       // If the backend hands back a payment-provider URL, that is where the

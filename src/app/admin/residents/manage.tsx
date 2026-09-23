@@ -1,12 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Search } from "lucide-react";
 import { AdminShell } from "@/components/admin/shell";
 import { DataTable, type Column } from "@/components/admin/data-table";
 import { RowMenu } from "@/components/admin/row-menu";
-import { Pagination, paginate } from "@/components/admin/pagination";
+import { Pagination } from "@/components/admin/pagination";
 import { ExportMenu } from "@/components/admin/export-menu";
 import { Modal } from "@/components/admin/modal";
 import { Button } from "@/components/ui/button";
@@ -20,26 +20,32 @@ import {
   listEstateTransactions,
   listResidents,
 } from "@/lib/api/endpoints/admin";
-import {
-  overdueFor,
-  paidBy,
-  paymentStanding,
-  periodTotal,
-} from "@/lib/dues-math";
+import { overdueFor, paidBy, periodTotal } from "@/lib/dues-math";
 import { formatLongDate, formatNaira, titleCase } from "@/lib/format";
 import { downloadCsv } from "@/lib/csv";
 import { refId } from "@/lib/schemas/ref";
+import { useDebounced } from "@/lib/hooks/use-debounced";
 import type { AdminResident } from "@/lib/schemas/admin";
+
+const PER_PAGE = 10;
 
 export function ResidentManagement() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
-  const [standingFilter, setStandingFilter] = useState("");
   const [page, setPage] = useState(1);
   const [addOpen, setAddOpen] = useState(false);
-  const [pastPaymentFor, setPastPaymentFor] = useState<AdminResident | null>(
-    null,
-  );
+  const [pastPaymentFor, setPastPaymentFor] = useState<AdminResident | null>(null);
+
+  /**
+   * Searching and paging now happen on the server. The typed value is
+   * debounced so one request is sent for what the user meant, rather than one
+   * per keystroke arriving out of order.
+   */
+  const term = useDebounced(search);
+
+  // A new search has its own page 1; staying on page 4 of the old results
+  // would show an empty table and look broken.
+  useEffect(() => setPage(1), [term]);
 
   const estate = useQuery({
     queryKey: ["estate", "profile"],
@@ -47,16 +53,23 @@ export function ResidentManagement() {
   });
 
   const residents = useQuery({
-    queryKey: ["estate", "residents"],
-    queryFn: () => listResidents(),
+    queryKey: ["estate", "residents", page, term],
+    queryFn: () => listResidents({ page, limit: PER_PAGE, search: term }),
+    // Keeps the current rows on screen while the next page loads, so the
+    // table does not flash empty between pages.
+    placeholderData: (previous) => previous,
   });
 
-  // Needed for the Total Dues and Overdues columns, which have no endpoint —
-  // see lib/dues-math.ts for how they are derived and why.
+  /**
+   * Total Dues and Overdues are still derived — there is no per-resident
+   * balance in the API. These two calls fetch the estate's bills and a slice
+   * of its payments to work them out. See lib/dues-math.ts for the assumption
+   * involved and why it is only an estimate.
+   */
   const dues = useQuery({ queryKey: ["estate", "dues"], queryFn: listDues });
   const transactions = useQuery({
-    queryKey: ["estate", "transactions"],
-    queryFn: () => listEstateTransactions(),
+    queryKey: ["estate", "transactions", "for-balances"],
+    queryFn: () => listEstateTransactions({ page: 1, limit: 100 }),
   });
 
   const remove = useMutation({
@@ -65,52 +78,23 @@ export function ResidentManagement() {
       queryClient.invalidateQueries({ queryKey: ["estate", "residents"] }),
   });
 
-  const all = residents.data?.value.data ?? [];
+  const rows = residents.data?.value.data ?? [];
+  const total = residents.data?.value.total ?? 0;
+  const pageCount = Math.max(Math.ceil(total / PER_PAGE), 1);
+  const unavailable = residents.data?.unavailable ?? residents.isError;
+
   const allTx = transactions.data?.value.data ?? [];
-  const expected = periodTotal(dues.data?.value ?? []);
-
-  /**
-   * Filtering happens in the browser.
-   *
-   * The spec defines a `search` query parameter in its shared components but
-   * does not attach it to /residents/estate, so there is no server-side
-   * search to call. For an estate of a few hundred residents this is fine —
-   * we already hold the whole list. It would not scale to thousands, at which
-   * point the backend needs a real search parameter.
-   */
-  const filtered = useMemo(() => {
-    const term = search.trim().toLowerCase();
-
-    return all.filter((resident) => {
-      if (standingFilter) {
-        const paid = paidBy(allTx, resident.userId, resident._id);
-        if (paymentStanding(expected, paid) !== standingFilter) return false;
-      }
-
-      if (!term) return true;
-
-      return [
-        resident.firstName,
-        resident.lastName,
-        resident.email,
-        resident.address,
-        resident.phoneNumber,
-      ]
-        .filter(Boolean)
-        .some((field) => String(field).toLowerCase().includes(term));
-    });
-  }, [all, allTx, search, standingFilter, expected]);
-
-  const pageCount = Math.ceil(filtered.length / 10);
-  const rows = paginate(filtered, page, 10);
+  const expected = useMemo(
+    () => periodTotal(dues.data?.value ?? []),
+    [dues.data],
+  );
 
   const columns: Column<AdminResident>[] = [
     {
       key: "id",
       header: "Resident ID",
-      // The Figma shows a short numeric id. Mongo ids are 24 hex characters,
-      // so the last six are shown — enough to tell two rows apart, and the
-      // full id is never useful to read aloud.
+      // Mongo ids are 24 characters; the last six are enough to tell two rows
+      // apart, and the full id is never useful to read aloud.
       cell: (row) => (
         <span className="font-mono text-muted">{row._id.slice(-6)}</span>
       ),
@@ -156,26 +140,26 @@ export function ResidentManagement() {
       header: "Overdues",
       align: "right",
       cell: (row) =>
-        formatNaira(
-          overdueFor(expected, paidBy(allTx, row.userId, row._id)),
-        ),
+        formatNaira(overdueFor(expected, paidBy(allTx, row.userId, row._id))),
     },
   ];
 
+  /**
+   * Export covers the current page only.
+   *
+   * With server-side paging the browser holds one page at a time, so this is
+   * what we actually have. Exporting a whole estate would mean walking every
+   * page — worth adding if anyone asks, but silently exporting ten rows and
+   * calling it "all residents" would be the worse option.
+   */
   const exportCsv = () => {
     downloadCsv(
-      `residents-${new Date().toISOString().slice(0, 10)}.csv`,
-      ["Resident ID", "First Name", "Last Name", "Email", "Phone", "Address", "Type", "Move-in date", "Total Dues", "Overdues"],
-      filtered.map((r) => [
-        r._id,
-        r.firstName,
-        r.lastName,
-        r.email,
-        r.phoneNumber,
-        r.address,
-        titleCase(r.role),
-        formatLongDate(r.moveInDate),
-        expected,
+      `residents-page-${page}-${new Date().toISOString().slice(0, 10)}.csv`,
+      ["Resident ID", "First Name", "Last Name", "Email", "Phone", "Address",
+       "Type", "Move-in date", "Total Dues", "Overdues"],
+      rows.map((r) => [
+        r._id, r.firstName, r.lastName, r.email, r.phoneNumber, r.address,
+        titleCase(r.role), formatLongDate(r.moveInDate), expected,
         overdueFor(expected, paidBy(allTx, r.userId, r._id)),
       ]),
     );
@@ -188,26 +172,6 @@ export function ResidentManagement() {
       estateId={estate.data?._id}
       actions={
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          <div className="w-36">
-            <label htmlFor="standing-filter" className="sr-only">
-              Filter residents
-            </label>
-            <select
-              id="standing-filter"
-              value={standingFilter}
-              onChange={(event) => {
-                setStandingFilter(event.target.value);
-                setPage(1);
-              }}
-              className="h-11 w-full rounded-field bg-white px-3 text-sm text-muted shadow-sm outline-none focus:ring-2 focus:ring-brand"
-            >
-              <option value="">All residents</option>
-              <option value="overdue">Overdues</option>
-              <option value="partial">Partial</option>
-              <option value="on-time">On-Time</option>
-            </select>
-          </div>
-
           <Button variant="deep" onClick={() => setAddOpen(true)}>
             <Plus className="size-4" aria-hidden="true" />
             Add New Resident
@@ -223,16 +187,13 @@ export function ResidentManagement() {
                 type="search"
                 placeholder="Search Residents"
                 value={search}
-                onChange={(event) => {
-                  setSearch(event.target.value);
-                  setPage(1);
-                }}
+                onChange={(event) => setSearch(event.target.value)}
                 icon={<Search className="size-4" />}
               />
             </div>
 
             <ExportMenu
-              disabled={!filtered.length}
+              disabled={!rows.length}
               onExcel={exportCsv}
               onPdf={() => window.print()}
             />
@@ -240,15 +201,13 @@ export function ResidentManagement() {
         </div>
       }
     >
-      {/* Announced politely so a screen-reader user learns the result count
-          changed as they type, without focus leaving the search box. */}
       <p className="sr-only" role="status">
-        {search ? `${rows.length} residents match ${search}` : ""}
+        {term ? `${total} residents match ${term}` : `${total} residents`}
       </p>
 
-      {residents.data?.unavailable ? (
+      {unavailable ? (
         <FormError
-          message="The server could not return your resident list. This is a backend problem, not a permissions one."
+          message="We couldn't load your resident list. This is a server problem, not a permissions one."
           className="mb-4"
         />
       ) : null}
@@ -259,27 +218,31 @@ export function ResidentManagement() {
         keyOf={(row) => row._id}
         loading={residents.isLoading}
         caption="Residents in this estate"
-        emptyTitle={search ? "No matching residents" : "No residents yet"}
+        emptyTitle={
+          unavailable
+            ? "Residents couldn't be loaded"
+            : term
+              ? "No matching residents"
+              : "No residents yet"
+        }
         emptyDescription={
-          search
-            ? "Try a different name, email or address."
-            : "Add your first resident, or share the Resident App link in the sidebar."
+          unavailable
+            ? "The server didn't respond. Try again shortly."
+            : term
+              ? "Try a different name, email or address."
+              : "Add your first resident, or share the Resident App link in the sidebar."
         }
         rowAction={(row) => (
           <RowMenu
             label={`Actions for ${row.firstName ?? "resident"}`}
             items={[
-              {
-                label: "View Past Payment",
-                onSelect: () => setPastPaymentFor(row),
-              },
+              { label: "View Past Payment", onSelect: () => setPastPaymentFor(row) },
               {
                 label: "Remove Resident",
                 danger: true,
                 onSelect: () => {
-                  // A destructive, irreversible action gets a confirmation.
-                  // The Figma says "Disable Resident", but the API only
-                  // offers DELETE — see the note in PHASE-4.md.
+                  // Destructive and irreversible. The design says "Disable",
+                  // but the API only offers delete.
                   const name =
                     [row.firstName, row.lastName].filter(Boolean).join(" ") ||
                     "this resident";
@@ -323,12 +286,11 @@ export function ResidentManagement() {
 }
 
 /**
- * "Chike Past Payment" in the Figma.
+ * "Chike Past Payment" in the design.
  *
- * The design shows "Payments Percentage: 72/75 (96% capacity)". Nothing in
- * the API produces that — there is no expected-payment count per resident. So
- * this shows the transactions we can actually attribute to them and leaves
- * the invented ratio out rather than fabricating one.
+ * The design shows "Payments Percentage: 72/75". Nothing in the API produces
+ * that, so this shows the share of one period's dues the resident has paid,
+ * labelled as such.
  */
 function PastPaymentModal({
   resident,
@@ -338,8 +300,14 @@ function PastPaymentModal({
   onClose: () => void;
 }) {
   const transactions = useQuery({
-    queryKey: ["estate", "transactions"],
-    queryFn: () => listEstateTransactions(1, 100),
+    queryKey: ["estate", "transactions", "for-balances"],
+    queryFn: () => listEstateTransactions({ page: 1, limit: 100 }),
+    enabled: Boolean(resident),
+  });
+
+  const dues = useQuery({
+    queryKey: ["estate", "dues"],
+    queryFn: listDues,
     enabled: Boolean(resident),
   });
 
@@ -348,15 +316,8 @@ function PastPaymentModal({
     const txUser = refId(tx.userId ?? undefined);
     return (
       Boolean(txUser) &&
-      (txUser === refId(resident.userId ?? undefined) ||
-        txUser === resident._id)
+      (txUser === refId(resident.userId ?? undefined) || txUser === resident._id)
     );
-  });
-
-  const dues = useQuery({
-    queryKey: ["estate", "dues"],
-    queryFn: listDues,
-    enabled: Boolean(resident),
   });
 
   const expectedForResident = periodTotal(dues.data?.value ?? []);
@@ -372,9 +333,6 @@ function PastPaymentModal({
       title={`${name} — Past Payment`}
       size="lg"
     >
-      {/* "Payments Percentage" in the Figma. There is no expected-payment
-          count per resident in the API, so this is the share of what they owe
-          that they have paid, and it is labelled as an estimate. */}
       <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-hairline pb-4">
         <h3 className="text-lg font-bold text-heading">Payments Percentage:</h3>
         <p className="text-muted">
@@ -404,9 +362,7 @@ function PastPaymentModal({
             >
               <span className="font-mono text-muted">{tx.tx_ref ?? "—"}</span>
               <span className="text-muted">
-                {tx.createdAt
-                  ? new Date(tx.createdAt).toLocaleString("en-NG")
-                  : "—"}
+                {tx.createdAt ? new Date(tx.createdAt).toLocaleString("en-NG") : "—"}
               </span>
               <span className="font-medium text-heading">
                 {formatNaira(tx.amount)}

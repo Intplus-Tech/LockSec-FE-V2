@@ -15,24 +15,29 @@ import {
 /**
  * Estate-admin data access.
  *
- * Same `tolerate` idea as the resident app: this backend has endpoints that
- * fail for reasons the frontend cannot fix, and a dashboard that dies because
- * one panel's endpoint is broken is worse than one that shows the rest and
- * says "unavailable".
+ * Lists are paginated and searched BY THE SERVER. The backend now supports a
+ * `search` parameter, confirmed live: one resident, filtered to none by a
+ * nonsense term. Before that, everything was filtered in the browser over
+ * whatever page happened to be loaded — which meant an estate with more than
+ * a hundred residents could only ever search the first hundred.
  *
- * Only named statuses on named endpoints are tolerated. Everything else still
- * throws, so a genuinely new bug is not hidden.
+ * `tolerate` remains, but only for failures that genuinely mean "we could not
+ * get this data": the server being unreachable, asleep, or throwing. The
+ * permission and server-error cases it used to cover have been fixed.
  */
+
+const DEFAULT_PAGE_SIZE = 10;
+
+/** The backend rejects any page size above 100. Clamp rather than fail. */
+const MAX_PAGE_SIZE = 100;
+const pageSize = (requested: number) => Math.min(requested, MAX_PAGE_SIZE);
 
 /**
- * The backend rejects any page size above 100 ("Too big: expected number to
- * be <=100"). Clamping here rather than at each call site means no future
- * screen can get it wrong — a caller asking for 500 quietly gets 100 instead
- * of a 400 that only shows up at runtime.
+ * Statuses that mean the data could not be fetched, as opposed to the request
+ * being wrong. Showing an empty table for these would tell an admin their
+ * estate has no residents, which is a worse lie than an error message.
  */
-const MAX_PAGE_SIZE = 100;
-
-const pageSize = (requested: number) => Math.min(requested, MAX_PAGE_SIZE);
+const UNAVAILABLE_STATUSES = [500, 502, 503, 504];
 
 export interface Tolerated<T> {
   value: T;
@@ -43,7 +48,7 @@ export interface Tolerated<T> {
 async function tolerate<T>(
   work: () => Promise<T>,
   fallback: T,
-  statuses: number[],
+  statuses: number[] = UNAVAILABLE_STATUSES,
 ): Promise<Tolerated<T>> {
   try {
     return { value: await work(), unavailable: false };
@@ -55,6 +60,34 @@ async function tolerate<T>(
   }
 }
 
+/** What every list screen passes in. */
+export interface ListParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+}
+
+interface Page<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+const emptyPage = <T>(limit: number): Page<T> => ({
+  data: [],
+  total: 0,
+  page: 1,
+  limit,
+});
+
+/** Blank searches are omitted entirely rather than sent as `search=`. */
+const listSearchParams = (p: ListParams) => ({
+  page: p.page ?? 1,
+  limit: pageSize(p.limit ?? DEFAULT_PAGE_SIZE),
+  search: p.search?.trim() ? p.search.trim() : undefined,
+});
+
 /* --- Estate ------------------------------------------------------------- */
 
 export const getEstateProfile = () =>
@@ -62,17 +95,42 @@ export const getEstateProfile = () =>
     (r) => r.data,
   );
 
+/**
+ * Self-service estate update, added to the API in the latest round.
+ *
+ * Previously the only way to change an estate was PATCH /estates/{id}, which
+ * is restricted to super admins — so the Settings switches could be read and
+ * not written, and reverted whenever anyone tried. This endpoint is scoped to
+ * the caller's own estate and is confirmed working: setting entranceCount to
+ * 2 returned 200, and reading the profile back showed 2.
+ */
+export const updateEstateProfile = (input: {
+  estateName?: string;
+  fullName?: string;
+  phoneNumber?: string;
+  address?: string;
+  accessCodeEnabled?: boolean;
+  paymentCollectionEnabled?: boolean;
+  entranceCount?: number;
+}) =>
+  apiRequest("/estates/profile", {
+    method: "PATCH",
+    body: input,
+    schema: envelope(estateSchema),
+  }).then((r) => r.data);
+
 /* --- Residents ---------------------------------------------------------- */
 
-export const listResidents = (page = 1, limit = MAX_PAGE_SIZE) =>
-  tolerate(
+type AdminResident = Awaited<ReturnType<typeof createResident>>;
+
+export const listResidents = (params: ListParams = {}) =>
+  tolerate<Page<AdminResident>>(
     () =>
       apiRequest("/residents/estate", {
-        searchParams: { page, limit: pageSize(limit) },
+        searchParams: listSearchParams(params),
         schema: paginatedEnvelope(adminResidentSchema),
-      }).then((r) => r.data),
-    { data: [], total: 0, page: 1, limit: pageSize(limit) },
-    [403, 500],
+      }).then((r) => r.data as Page<AdminResident>),
+    emptyPage(params.limit ?? DEFAULT_PAGE_SIZE),
   );
 
 export const createResident = (input: CreateResidentInput) =>
@@ -97,22 +155,22 @@ export const deleteResident = (id: string) =>
 
 /* --- Security ----------------------------------------------------------- */
 
-export const listSecurity = (page = 1, limit = MAX_PAGE_SIZE) =>
-  tolerate(
+type SecurityPersonnel = Awaited<ReturnType<typeof createSecurity>>;
+
+export const listSecurity = (params: ListParams = {}) =>
+  tolerate<Page<SecurityPersonnel>>(
     () =>
       apiRequest("/securities/estate", {
-        searchParams: { page, limit: pageSize(limit) },
+        searchParams: listSearchParams(params),
         schema: paginatedEnvelope(securitySchema),
-      }).then((r) => r.data),
-    { data: [], total: 0, page: 1, limit: pageSize(limit) },
-    [403, 500],
+      }).then((r) => r.data as Page<SecurityPersonnel>),
+    emptyPage(params.limit ?? DEFAULT_PAGE_SIZE),
   );
 
 export const createSecurity = (input: CreateSecurityInput) =>
   apiRequest("/securities", {
     method: "POST",
-    // The backend rejects an empty email string, so omit the key entirely
-    // when it is blank rather than sending "".
+    // An empty email string is rejected, so omit the key rather than send "".
     body: input.email ? input : { ...input, email: undefined },
     schema: envelope(securitySchema),
   }).then((r) => r.data);
@@ -139,8 +197,7 @@ export const listDues = () =>
         searchParams: { page: 1, limit: MAX_PAGE_SIZE },
         schema: paginatedEnvelope(adminDueSchema),
       }).then((r) => r.data.data),
-    [],
-    [403, 500],
+    [] as Awaited<ReturnType<typeof createDue>>[],
   );
 
 /** The API takes accountNumber as a number; the form keeps it as a string. */
@@ -180,15 +237,21 @@ export const deleteDue = (id: string) =>
 
 /* --- Transactions ------------------------------------------------------- */
 
-export const listEstateTransactions = (page = 1, limit = MAX_PAGE_SIZE) =>
-  tolerate(
+type AdminTransaction = Awaited<ReturnType<typeof getOneTransaction>>;
+const getOneTransaction = () =>
+  apiRequest("/transactions/estate", {
+    searchParams: { page: 1, limit: 1 },
+    schema: paginatedEnvelope(adminTransactionSchema),
+  }).then((r) => r.data.data[0]);
+
+export const listEstateTransactions = (params: ListParams = {}) =>
+  tolerate<Page<AdminTransaction>>(
     () =>
       apiRequest("/transactions/estate", {
-        searchParams: { page, limit: pageSize(limit) },
+        searchParams: listSearchParams(params),
         schema: paginatedEnvelope(adminTransactionSchema),
-      }).then((r) => r.data),
-    { data: [], total: 0, page: 1, limit: pageSize(limit) },
-    [403, 500],
+      }).then((r) => r.data as Page<AdminTransaction>),
+    emptyPage(params.limit ?? DEFAULT_PAGE_SIZE),
   );
 
 /* --- Plans and subscriptions -------------------------------------------- */
@@ -200,9 +263,14 @@ export const listPlans = () =>
         searchParams: { page: 1, limit: 20 },
         schema: paginatedEnvelope(planSchema),
       }).then((r) => r.data.data),
-    [],
-    [403, 500],
+    [] as Awaited<ReturnType<typeof listPlansRaw>>,
   );
+
+const listPlansRaw = () =>
+  apiRequest("/plans", {
+    searchParams: { page: 1, limit: 1 },
+    schema: paginatedEnvelope(planSchema),
+  }).then((r) => r.data.data);
 
 export const listEstateSubscriptions = () =>
   tolerate(
@@ -211,7 +279,7 @@ export const listEstateSubscriptions = () =>
         searchParams: { page: 1, limit: 10 },
       }) as Promise<Record<string, unknown>>,
     {} as Record<string, unknown>,
-    [403, 404, 500],
+    [...UNAVAILABLE_STATUSES, 404],
   );
 
 export const createSubscription = (input: {
@@ -224,43 +292,13 @@ export const createSubscription = (input: {
     body: input,
   }) as Promise<Record<string, unknown>>;
 
-/* --- Estate settings and password --------------------------------------- */
+/* --- Password ----------------------------------------------------------- */
 
-/**
- * Change the signed-in user's password.
- *
- * Uses PATCH /auth/change-password, which exists as of the API update. Before
- * that we posted to /users/profile/update on the guess that it might accept a
- * password — it accepted the request, ignored the password fields, and
- * returned 200. The updated spec confirms why: `UpdateUserInput` contains
- * firstName, lastName, phoneNumber and address, and no password at all.
- *
- * Worth remembering as a pattern. An endpoint returning 200 tells you it
- * accepted your request, not that it did what you meant.
- */
 export const changePassword = (input: {
   oldPassword: string;
   newPassword: string;
 }) =>
   apiRequest<never>("/auth/change-password", {
-    method: "PATCH",
-    body: input,
-  }) as Promise<Record<string, unknown>>;
-
-/**
- * Estate-level settings — the Access Code and Payment Collection switches,
- * and the entrance count.
- *
- * There is no settings endpoint. PATCH /estates/{id} exists but is documented
- * "Super Admin only" and its schema has no such fields. We attempt it anyway
- * so that the moment the backend supports it, this works; the UI reverts the
- * switch and explains if the call is refused.
- */
-export const updateEstateSettings = (
-  id: string,
-  input: Record<string, unknown>,
-) =>
-  apiRequest<never>(`/estates/${id}`, {
     method: "PATCH",
     body: input,
   }) as Promise<Record<string, unknown>>;

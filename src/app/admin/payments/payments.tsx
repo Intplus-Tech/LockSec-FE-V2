@@ -1,15 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Search } from "lucide-react";
 import { AdminShell } from "@/components/admin/shell";
 import { DataTable, type Column } from "@/components/admin/data-table";
-import { Pagination, paginate } from "@/components/admin/pagination";
+import { Pagination } from "@/components/admin/pagination";
 import { ExportMenu } from "@/components/admin/export-menu";
 import { RowMenu } from "@/components/admin/row-menu";
 import { TextField } from "@/components/ui/text-field";
-import { SelectField } from "@/components/ui/select-field";
 import { FormError } from "@/components/ui/form-error";
 import {
   getEstateProfile,
@@ -19,19 +18,31 @@ import {
 import { overdueFor, paidBy, periodTotal } from "@/lib/dues-math";
 import { formatNaira } from "@/lib/format";
 import { downloadCsv } from "@/lib/csv";
+import { useDebounced } from "@/lib/hooks/use-debounced";
 import { personFrom, type AdminTransaction } from "@/lib/schemas/admin";
 
-const STATUS_FILTERS = [
-  { value: "", label: "All" },
-  { value: "success", label: "Successful" },
-  { value: "pending", label: "Pending" },
-  { value: "failed", label: "Failed" },
-] as const;
+const PER_PAGE = 10;
 
+/**
+ * Payments & Dues.
+ *
+ * NOTE ON THE STATUS FILTER. The design has a filter dropdown here, and there
+ * used to be one filtering by transaction status. It has been removed.
+ *
+ * With paging done by the server, a client-side filter only sees the ten rows
+ * currently loaded — so selecting "Failed" would show the failed payments on
+ * *this page* while appearing to show all of them. A control that quietly
+ * answers a different question than the one asked is worse than no control.
+ *
+ * The API has no status parameter yet. Once it does, this becomes a few lines
+ * and the dropdown comes back.
+ */
 export function PaymentsAndDues() {
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
+
+  const term = useDebounced(search);
+  useEffect(() => setPage(1), [term]);
 
   const estate = useQuery({
     queryKey: ["estate", "profile"],
@@ -39,38 +50,25 @@ export function PaymentsAndDues() {
   });
 
   const transactions = useQuery({
-    queryKey: ["estate", "transactions"],
-    queryFn: () => listEstateTransactions(),
+    queryKey: ["estate", "transactions", page, term],
+    queryFn: () => listEstateTransactions({ page, limit: PER_PAGE, search: term }),
+    placeholderData: (previous) => previous,
   });
 
   const dues = useQuery({ queryKey: ["estate", "dues"], queryFn: listDues });
+  const balances = useQuery({
+    queryKey: ["estate", "transactions", "for-balances"],
+    queryFn: () => listEstateTransactions({ page: 1, limit: 100 }),
+  });
 
-  const all = transactions.data?.value.data ?? [];
+  const rows = transactions.data?.value.data ?? [];
+  const total = transactions.data?.value.total ?? 0;
+  const pageCount = Math.max(Math.ceil(total / PER_PAGE), 1);
+  const unavailable = transactions.data?.unavailable ?? transactions.isError;
+
   const expected = periodTotal(dues.data?.value ?? []);
+  const allTx = balances.data?.value.data ?? [];
 
-  const filtered = useMemo(() => {
-    const term = search.trim().toLowerCase();
-
-    return all.filter((tx) => {
-      if (status && tx.status?.toLowerCase() !== status) return false;
-      if (!term) return true;
-
-      const person = personFrom(tx.userId);
-      return [tx.tx_ref, person.name, person.address]
-        .filter(Boolean)
-        .some((field) => String(field).toLowerCase().includes(term));
-    });
-  }, [all, search, status]);
-
-  const pageCount = Math.ceil(filtered.length / 10);
-  const rows = paginate(filtered, page, 10);
-
-  /**
-   * The Figma's filter reads "Overdues". There is no overdue concept in the
-   * API — a transaction has a status of pending, success or failed, and
-   * nothing says what a resident *should* have paid by now. Filtering by
-   * status is the honest version of the same control.
-   */
   const columns: Column<AdminTransaction>[] = [
     {
       key: "time",
@@ -116,9 +114,8 @@ export function PaymentsAndDues() {
       header: "Overdue",
       align: "right",
       hideBelow: "sm",
-      cell: (row) => {
-        return formatNaira(overdueFor(expected, paidBy(all, row.userId)));
-      },
+      cell: (row) =>
+        formatNaira(overdueFor(expected, paidBy(allTx, row.userId))),
     },
     {
       key: "duration",
@@ -134,18 +131,14 @@ export function PaymentsAndDues() {
 
   const exportCsv = () => {
     downloadCsv(
-      `payments-${new Date().toISOString().slice(0, 10)}.csv`,
+      `payments-page-${page}-${new Date().toISOString().slice(0, 10)}.csv`,
       ["Transaction Ref", "Name", "Address", "Date", "Amount", "Duration", "Status"],
-      filtered.map((tx) => {
+      rows.map((tx) => {
         const person = personFrom(tx.userId);
         return [
-          tx.tx_ref,
-          person.name,
-          person.address,
+          tx.tx_ref, person.name, person.address,
           tx.createdAt ? new Date(tx.createdAt).toISOString() : "",
-          tx.amount,
-          tx.duration,
-          tx.status,
+          tx.amount, tx.duration, tx.status,
         ];
       }),
     );
@@ -158,21 +151,6 @@ export function PaymentsAndDues() {
       estateId={estate.data?._id}
       actions={
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          <div className="w-40">
-            <label htmlFor="status-filter" className="sr-only">
-              Filter by status
-            </label>
-            <SelectField
-              id="status-filter"
-              value={status}
-              onChange={(event) => {
-                setStatus(event.target.value);
-                setPage(1);
-              }}
-              options={STATUS_FILTERS}
-            />
-          </div>
-
           <div className="flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto sm:gap-3">
             <div className="min-w-0 flex-1 sm:w-64 sm:flex-none">
               <label htmlFor="payment-search" className="sr-only">
@@ -183,16 +161,13 @@ export function PaymentsAndDues() {
                 type="search"
                 placeholder="Search Residents"
                 value={search}
-                onChange={(event) => {
-                  setSearch(event.target.value);
-                  setPage(1);
-                }}
+                onChange={(event) => setSearch(event.target.value)}
                 icon={<Search className="size-4" />}
               />
             </div>
 
             <ExportMenu
-              disabled={!filtered.length}
+              disabled={!rows.length}
               onExcel={exportCsv}
               onPdf={() => window.print()}
             />
@@ -201,12 +176,12 @@ export function PaymentsAndDues() {
       }
     >
       <p className="sr-only" role="status">
-        {filtered.length} payments shown
+        {total} payments
       </p>
 
-      {transactions.data?.unavailable ? (
+      {unavailable ? (
         <FormError
-          message="The server could not return payment records."
+          message="We couldn't load payment records. Try again shortly."
           className="mb-4"
         />
       ) : null}
@@ -218,19 +193,24 @@ export function PaymentsAndDues() {
         loading={transactions.isLoading}
         caption="Payments made across the estate"
         emptyTitle={
-          search || status ? "No matching payments" : "No payments yet"
+          unavailable
+            ? "Payments couldn't be loaded"
+            : term
+              ? "No matching payments"
+              : "No payments yet"
         }
         emptyDescription={
-          search || status
-            ? "Try a different search or filter."
-            : "Payments made by residents will appear here."
+          unavailable
+            ? "The server didn't respond. Try again shortly."
+            : term
+              ? "Try a different search."
+              : "Payments made by residents will appear here."
         }
         rowAction={(row) => (
           /**
-           * The Figma shows the three-dot affordance on this table but never
-           * what is inside it. Rather than invent menu items, this offers the
-           * one action the data supports: jump to that resident's record.
-           * Ask your designer what else belongs here.
+           * The design shows a three-dot menu here but never what is inside
+           * it. Rather than invent items, this offers the one action the data
+           * supports: look that resident up.
            */
           <RowMenu
             label={`Actions for ${personFrom(row.userId).name}`}

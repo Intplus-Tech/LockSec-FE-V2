@@ -116,9 +116,26 @@ export const transactionSchema = z.object({
 export type Transaction = z.infer<typeof transactionSchema>;
 
 /** The payment types the API accepts on POST /payments/initiate. */
+/**
+ * The payment types POST /payments/initiate accepts.
+ *
+ * `estate_dues`, NOT `estate_payments`. The documented enum still says
+ * `estate_payments`, and `CreatePaymentInput` was not among the schemas that
+ * changed in the last spec update — so the implementation moved and the
+ * documentation did not follow. The server's own rejection named the four it
+ * really wants:
+ *
+ *     Invalid option: expected one of
+ *     "estate_dues" | "utility" | "project" | "other"
+ *
+ * Worth remembering how this surfaced: only by completing the payment form
+ * for the first time. Nothing in the spec diff hinted at it.
+ */
 export const PAYMENT_TYPES = [
-  { value: "estate_payments", label: "Estate Dues" },
+  { value: "estate_dues", label: "Estate Dues" },
   { value: "utility", label: "Utility" },
   { value: "project", label: "Project" },
   { value: "other", label: "Others" },
 ] as const;
+
+export type PaymentType = (typeof PAYMENT_TYPES)[number]["value"];

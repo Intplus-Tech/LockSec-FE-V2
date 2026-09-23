@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -9,8 +9,8 @@ import { AdminShell } from "@/components/admin/shell";
 import { DataTable, type Column } from "@/components/admin/data-table";
 import { RowMenu } from "@/components/admin/row-menu";
 import { Modal } from "@/components/admin/modal";
-import { Toggle } from "@/components/admin/toggle";
-import { Pagination, paginate } from "@/components/admin/pagination";
+import { Pagination } from "@/components/admin/pagination";
+import { useDebounced } from "@/lib/hooks/use-debounced";
 import { ExportMenu } from "@/components/admin/export-menu";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
@@ -30,10 +30,17 @@ import {
 import { ApiError } from "@/lib/api/client";
 import { downloadCsv } from "@/lib/csv";
 
+const PER_PAGE = 10;
+
 export function SecurityManagement() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+
+  // Searching and paging are done by the server now; debounce so one request
+  // is sent for what the user meant rather than one per keystroke.
+  const term = useDebounced(search);
+  useEffect(() => setPage(1), [term]);
   const [addOpen, setAddOpen] = useState(false);
   const [created, setCreated] = useState<SecurityPersonnel | null>(null);
 
@@ -43,8 +50,9 @@ export function SecurityManagement() {
   });
 
   const security = useQuery({
-    queryKey: ["estate", "security"],
-    queryFn: () => listSecurity(),
+    queryKey: ["estate", "security", page, term],
+    queryFn: () => listSecurity({ page, limit: PER_PAGE, search: term }),
+    placeholderData: (previous) => previous,
   });
 
   const remove = useMutation({
@@ -53,26 +61,10 @@ export function SecurityManagement() {
       queryClient.invalidateQueries({ queryKey: ["estate", "security"] }),
   });
 
-  const all = security.data?.value.data ?? [];
-
-  const filtered = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    if (!term) return all;
-    return all.filter((person) =>
-      [
-        person.firstName,
-        person.lastName,
-        person.phoneNumber,
-        person.securityCompany,
-        person.address,
-      ]
-        .filter(Boolean)
-        .some((field) => String(field).toLowerCase().includes(term)),
-    );
-  }, [all, search]);
-
-  const pageCount = Math.ceil(filtered.length / 10);
-  const rows = paginate(filtered, page, 10);
+  const rows = security.data?.value.data ?? [];
+  const total = security.data?.value.total ?? 0;
+  const pageCount = Math.max(Math.ceil(total / PER_PAGE), 1);
+  const unavailable = security.data?.unavailable ?? security.isError;
 
   const columns: Column<SecurityPersonnel>[] = [
     {
@@ -110,38 +102,22 @@ export function SecurityManagement() {
       cell: (row) => row.securityCompany ?? "—",
     },
     {
-      key: "status",
-      header: "Status",
-      cell: (row) => (
-        <span className="text-muted">
-          {row.securityCode ? "Active" : "Enabled"}
-        </span>
-      ),
-    },
-    {
-      key: "enabled",
-      header: "",
-      align: "right",
-      cell: (row) => (
-        /**
-         * The Figma shows a green/red switch here. There is no enabled flag
-         * on the security model, so this reflects whether the account has a
-         * sign-in code and turning it off deletes nothing — the PATCH is
-         * attempted and reverts if the server refuses.
-         *
-         * Backend issue 30: security personnel need an active/inactive flag.
-         */
-        <Toggle
-          checked={Boolean(row.securityCode)}
-          tone="ok"
-          label={`${row.firstName ?? "Guard"} active`}
-          onChange={() =>
-            window.alert(
-              "This server has no way to disable a guard yet. Remove them from the row menu instead.",
-            )
-          }
-        />
-      ),
+      key: "code",
+      header: "Sign-in ID",
+      /**
+       * The API now returns securityCode on the list, so a guard's sign-in ID
+       * can be looked up at any time. It used to appear only once, in the
+       * response when the guard was created — so an admin who closed that
+       * popup left the guard unable to sign in, with no way to recover it.
+       */
+      cell: (row) =>
+        row.securityCode ? (
+          <span className="font-mono tracking-wider text-heading">
+            {row.securityCode}
+          </span>
+        ) : (
+          <span className="text-faint">—</span>
+        ),
     },
   ];
 
@@ -167,22 +143,19 @@ export function SecurityManagement() {
                 type="search"
                 placeholder="Search Security"
                 value={search}
-                onChange={(event) => {
-                  setSearch(event.target.value);
-                  setPage(1);
-                }}
+                onChange={(event) => setSearch(event.target.value)}
                 icon={<Search className="size-4" />}
               />
             </div>
 
             <ExportMenu
-              disabled={!filtered.length}
+              disabled={!rows.length}
               onPdf={() => window.print()}
               onExcel={() =>
                 downloadCsv(
                   `security-${new Date().toISOString().slice(0, 10)}.csv`,
                   ["Personnel ID", "First Name", "Last Name", "Phone", "Company", "Address"],
-                  filtered.map((r) => [
+                  rows.map((r) => [
                     r._id,
                     r.firstName,
                     r.lastName,
@@ -197,9 +170,9 @@ export function SecurityManagement() {
         </div>
       }
     >
-      {security.data?.unavailable ? (
+      {unavailable ? (
         <FormError
-          message="The server could not return your security list."
+          message="We couldn't load your security list. Try again shortly."
           className="mb-4"
         />
       ) : null}
@@ -210,11 +183,19 @@ export function SecurityManagement() {
         keyOf={(row) => row._id}
         loading={security.isLoading}
         caption="Security personnel at this estate"
-        emptyTitle={search ? "No matching personnel" : "No security personnel yet"}
+        emptyTitle={
+          unavailable
+            ? "Personnel couldn't be loaded"
+            : term
+              ? "No matching personnel"
+              : "No security personnel yet"
+        }
         emptyDescription={
-          search
-            ? "Try a different name, phone or company."
-            : "Add a guard to give them a code for the gate app."
+          unavailable
+            ? "The server didn't respond. Try again shortly."
+            : term
+              ? "Try a different name, phone or company."
+              : "Add a guard to give them a sign-in ID for the gate app."
         }
         rowAction={(row) => (
           <RowMenu

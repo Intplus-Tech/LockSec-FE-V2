@@ -45,23 +45,24 @@ export interface Tolerated<T> {
 
 /**
  * Statuses that mean "we could not get this data", as opposed to "the
- * request was wrong".
+ * request was wrong":
  *
- *   403  the backend refuses residents this endpoint
  *   500  an unhandled exception inside the backend
  *   502  a bad gateway between us and it
  *   503  the backend is unreachable or asleep
  *   504  it took too long to answer
  *
- * The gateway statuses were missing, which produced exactly the bug this
- * whole mechanism exists to prevent: with the backend down, the dues query
- * threw instead of being tolerated, `dues.data` was undefined, and the
- * dashboard fell back to `?? 0` and displayed a confident **₦0**.
+ * 403 used to be on this list, because /dues/estate refused residents and
+ * /access-codes/resident threw. Both are fixed and verified, so a permission
+ * error here would now be a real problem worth surfacing rather than hiding.
  *
- * A resident seeing ₦0 concludes they owe nothing. That is worse than an
- * error message, because there is no reason for them to doubt it.
+ * The gateway statuses stay. With the backend down, an untolerated failure
+ * left `dues.data` undefined, the dashboard fell back to `?? 0`, and a
+ * resident was shown a confident ₦0 — which they would reasonably read as
+ * owing nothing. That is worse than an error, because nothing prompts them
+ * to doubt it.
  */
-const UNAVAILABLE_STATUSES = [403, 500, 502, 503, 504];
+const UNAVAILABLE_STATUSES = [500, 502, 503, 504];
 
 async function tolerate<T>(
   work: () => Promise<T>,
@@ -109,19 +110,9 @@ export const createAccessCode = (input: CreateAccessCodeInput) =>
 type AccessCode = Awaited<ReturnType<typeof getAccessCode>>;
 
 /**
- * STILL BROKEN. Returns 500:
- *
- *     "Cannot read properties of undefined (reading 'populated')"
- *
- * An unhandled Mongoose exception in the backend, so nothing sent differently
- * will help. There is no workaround either: `/access-codes` is admin-only and
- * returns 403 to residents, and `/access-codes/{id}` needs ids that only the
- * broken list can supply.
- *
- * Tolerated so the dashboard and history screen stay usable. The history tab
- * says the list is unavailable rather than claiming the resident has no
- * codes — which would be untrue, and would make them think theirs had
- * vanished. Backend issue 23.
+ * GET /access-codes/resident currently returns a 500 from an unhandled
+ * exception in the backend's Mongoose query. Tolerated so the dashboard and
+ * history screen stay usable while it is broken.
  */
 export const listMyAccessCodes = (page = 1, limit = 20) =>
   tolerate<AccessCode[]>(
@@ -144,13 +135,9 @@ const getOneDue = () =>
   }).then((r) => r.data.data[0]);
 
 /**
- * Residents can now read this — confirmed by a live 200 response. It was
- * previously 403 "Forbidden: insufficient role", which blocked the dashboard's
- * Amount Due and the whole Make Estate Bill screen.
- *
- * Still wrapped in `tolerate` on purpose. Being permitted to call an endpoint
- * is not the same as it always succeeding, and the alternative when it fails
- * is a confident ₦0 that a resident would read as "you owe nothing".
+ * GET /dues/estate is marked "Estate Admins only" and refuses residents, so
+ * a resident cannot see what they owe. Backend issue 18 — the most serious
+ * one on the list, since paying dues is half of what this app is for.
  */
 export const listEstateDues = () =>
   tolerate<Due[]>(
