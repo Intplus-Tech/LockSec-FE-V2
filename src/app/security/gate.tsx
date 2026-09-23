@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { LogOut } from "lucide-react";
 import { LogoMark } from "@/components/brand/logo";
+import { Splash } from "@/components/brand/splash";
 import { Keypad } from "@/components/security/keypad";
 import { ValidEntry } from "@/components/security/valid-entry";
 import { validateAccessCode } from "@/lib/api/endpoints/security";
@@ -103,6 +104,14 @@ export function SecurityGate() {
 
   return (
     <div className="surface-stars flex min-h-dvh flex-col px-5 py-6 sm:px-6">
+      {/*
+        The gate screen has nothing to fetch, so this is a short branded
+        opening rather than a cover for loading. Shown once per session: a
+        guard returns here after every visitor, and an animation each time
+        would be an obstacle rather than a flourish.
+      */}
+      <Splash storageKey="locksec:splash:security" />
+
       <div className="mx-auto flex w-full max-w-sm justify-end">
         <button
           type="button"

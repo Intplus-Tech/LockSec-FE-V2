@@ -13,6 +13,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { DashboardTile } from "@/components/resident/tile";
+import { Splash, SplashAnnouncement } from "@/components/brand/splash";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FormError } from "@/components/ui/form-error";
 import { formatNaira } from "@/lib/format";
@@ -104,6 +105,15 @@ export function ResidentDashboard() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-ink">
+      {/*
+        The opening screen covers the first load, which is exactly when the
+        profile, codes and dues are still being fetched — so it replaces a
+        blank frame rather than adding a wait. It steps aside as soon as the
+        profile arrives.
+      */}
+      <Splash ready={!profile.isPending} storageKey="locksec:splash:resident" />
+      <SplashAnnouncement loading={profile.isPending} />
+
       <header className="surface-stars px-5 pb-8 pt-5 text-white min-[400px]:px-6 min-[400px]:pt-6">
         <div className="mx-auto w-full max-w-md">
           <div className="flex items-start justify-between gap-3">
