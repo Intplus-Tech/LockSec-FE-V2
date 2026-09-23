@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { Splash } from "@/components/brand/splash";
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
+import { Splash } from "@/components/brand/splash";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ResidentLoginForm } from "./login-form";
 
@@ -17,18 +18,29 @@ export const metadata: Metadata = {
 export default function ResidentLoginPage() {
   return (
     <div className="flex min-h-dvh flex-col bg-white">
-      {/* The opening comes before the sign-in screen: this is the way
-          into the resident app. */}
-      <Splash storageKey="locksec:splash:resident" />
+      {/* once={false}: coming back to sign in again is a fresh start, so the
+          opening plays every time rather than only the first. */}
+      <Splash once={false} storageKey="locksec:splash:resident" />
 
       <header className="surface-stars px-5 pb-9 pt-7 text-white min-[400px]:px-6 min-[400px]:pb-10 min-[400px]:pt-8">
         <div className="mx-auto w-full max-w-md">
+          {/* A way back to the landing page. Without it, anyone who opened
+              the wrong app is stuck reaching for the browser's back button,
+              which is not obvious on a phone in a standalone window. */}
+          <Link
+            href="/"
+            className="-ml-2 mb-4 inline-flex min-h-11 items-center gap-2 rounded-field px-2 text-sm text-white/70 transition-colors hover:text-white"
+          >
+            <ArrowLeft className="size-4" aria-hidden="true" />
+            Home
+          </Link>
+
           <Logo tone="light" />
 
           {/* The Figma leaves a large gap here. On a short screen a fixed
               margin pushes the form below the fold, so it scales with the
               viewport instead. */}
-          <h1 className="mt-[clamp(2.5rem,8vh,4rem)] text-display font-extrabold">
+          <h1 className="mt-[clamp(2rem,6vh,3.5rem)] text-display font-extrabold">
             Sign in to your Account
           </h1>
 
@@ -54,11 +66,6 @@ export default function ResidentLoginPage() {
            * cannot be known while the page is being prerendered at build
            * time. Suspense marks the boundary where the server stops and the
            * browser takes over.
-           *
-           * Without it the build fails outright — Next.js refuses to
-           * prerender a page whose output depends on a URL it does not have
-           * yet. The fallback is a skeleton the same shape as the form, so
-           * nothing jumps when the real thing arrives.
            */}
           <Suspense fallback={<FormSkeleton />}>
             <ResidentLoginForm />

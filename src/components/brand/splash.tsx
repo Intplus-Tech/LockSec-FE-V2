@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { LogoMark } from "@/components/brand/logo";
 import { cn } from "@/lib/utils";
 
@@ -16,11 +17,15 @@ import { cn } from "@/lib/utils";
  * either app: through the landing page, from a bookmark, or straight to a
  * deep link such as an estate's invite link.
  *
- * ONCE PER SESSION. That coverage only works because the splash remembers
- * having been shown. A guard returns to the gate screen after every visitor,
- * and a resident moves between four screens — a logo animation each time
- * would be an obstacle rather than a flourish. Session storage rather than
- * local, so a fresh visit tomorrow gets the full opening again.
+ * TWO BEHAVIOURS, BY PLACE. On a sign-in screen it shows every time: coming
+ * back to sign in again is a fresh start and should feel like one. Inside the
+ * apps it shows once per browser session — a guard returns to the gate after
+ * every visitor, and a resident moves between four screens, so a logo
+ * animation each time would be an obstacle rather than a flourish.
+ *
+ * Either way it records having been shown, so signing in and landing on the
+ * dashboard gives one opening rather than two in a row. Session storage
+ * rather than local, so a fresh visit tomorrow starts over.
  *
  * NO ARTIFICIAL WAIT WHERE THERE IS REAL LOADING. Pass `ready` and the splash
  * stays until the screen behind it has what it needs; `minMs` only stops it
@@ -29,12 +34,18 @@ import { cn } from "@/lib/utils";
 export function Splash({
   ready = true,
   minMs = 1100,
+  once = true,
   storageKey,
 }: {
   /** False while the screen behind is still loading. */
   ready?: boolean;
   /** Shortest time to stay on screen, so it is readable rather than a flash. */
   minMs?: number;
+  /**
+   * True inside the apps — show once per session. False on sign-in screens,
+   * where every arrival is a fresh start.
+   */
+  once?: boolean;
   /** Separate keys per app, so signing in as a guard still gets its opening. */
   storageKey: string;
 }) {
@@ -54,6 +65,8 @@ export function Splash({
     typeof window === "undefined" ? useEffect : useLayoutEffect;
 
   useIsomorphicLayoutEffect(() => {
+    if (!once) return;
+
     try {
       if (window.sessionStorage.getItem(storageKey) === "seen") {
         setPhase("gone");
@@ -62,7 +75,7 @@ export function Splash({
       // Storage can be unavailable in private modes. Showing the splash is
       // the harmless outcome, so there is nothing to handle.
     }
-  }, [storageKey]);
+  }, [once, storageKey]);
 
   useEffect(() => {
     if (phase !== "visible" || !ready) return;
@@ -121,5 +134,34 @@ export function SplashAnnouncement({ loading }: { loading: boolean }) {
     <p className="sr-only" role="status">
       {loading ? "Loading LockSec" : ""}
     </p>
+  );
+}
+
+
+/**
+ * Chooses the behaviour from the current route.
+ *
+ * The security layout wraps both the gate and its sign-in screen, so it
+ * cannot simply pick one setting — the sign-in screen should show the opening
+ * every time, the gate should not. This reads the path and decides.
+ *
+ * The `key` matters: a layout does not remount as you move between its pages,
+ * so without it the splash would stay in its finished state forever. Changing
+ * the key on navigation gives a fresh one, which then applies whichever rule
+ * fits the page just opened.
+ */
+export function SplashOnEntry({
+  storageKey,
+  entryPaths,
+}: {
+  storageKey: string;
+  /** Routes that should show the opening on every visit. */
+  entryPaths: string[];
+}) {
+  const pathname = usePathname();
+  const isEntry = entryPaths.includes(pathname);
+
+  return (
+    <Splash key={pathname} storageKey={storageKey} once={!isEntry} />
   );
 }

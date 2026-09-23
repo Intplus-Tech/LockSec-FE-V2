@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Splash } from "@/components/brand/splash";
+import { SplashOnEntry } from "@/components/brand/splash";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -13,11 +13,15 @@ export default function SecurityLayout({
   return (
     <>
       {/*
-        This layout wraps both /security/login and the gate itself, so a guard
-        sees the opening before the Personnel ID screen — which is the first
-        thing they use — and not again once they are working.
+        This layout wraps both the Personnel ID screen and the gate itself, so
+        it cannot use one rule for both. Signing in shows the opening every
+        time; the gate shows it once per session, because a guard comes back
+        to that screen after every visitor.
       */}
-      <Splash storageKey="locksec:splash:security" />
+      <SplashOnEntry
+        storageKey="locksec:splash:security"
+        entryPaths={["/security/login"]}
+      />
       {children}
     </>
   );
